@@ -33,6 +33,7 @@ const Fin = function() {
     const Variable = function(name, value) {
         this.name = name;
         this.value = value;
+        this.referenceList = new Map();
     };
     const Context = function(element, parentContext) {
         const context = this;
@@ -51,6 +52,7 @@ const Fin = function() {
         // set Variable object
         this.setVar = function(variable) {
             context.variables.set(variable.name, variable);
+            context.updateReferencingElements(variable.name);
         };
         // set new variable
         this.setNew = function(name, value) {
@@ -62,6 +64,7 @@ const Fin = function() {
             if(context.variables.has(name)) {
                 const variable = context.variables.get(name);
                 variable.value = value;
+                context.updateReferencingElements(name);
             } else {
                 const variable = new Variable(name, value);
                 context.variables.set(name, variable);
@@ -77,18 +80,32 @@ const Fin = function() {
                 const variable = new Variable(name, value);
                 context.variables.set(name, variable);
             }
+            context.updateReferencingElements(name);
         };
         // get variable
-        this.get = function(name) {
+        this.get = function(name, element) {
             name = context.varName(name);
-            return (context.variables.has(name) && context.variables.get(name))
+            const variable = (context.variables.has(name) && context.variables.get(name))
                 || (context.parentContext && context.parentContext.get(name));
+            if(element)
+                variable.referenceList.set(element, true);
+            return variable;
         };
         // has variable
         this.has = function(name) {
             name = context.varName(name);
             return context.variables.has(name) 
                 || (context.parentContext && context.parentContext.has(name));
+        };
+        this.updateReferencingElements = function(name) {
+            name = context.varName(name);
+            const variable = (context.variables.has(name) && context.variables.get(name))
+                || (context.parentContext && context.parentContext.get(name));
+            if(variable && variable.referenceList.size > 0) {
+                for(let updateTarget of variable.referenceList) {
+                    fin.update(updateTarget[0], false);
+                }
+            }
         };
         this.runInContext = function(fn) {
             'use strict';
@@ -113,7 +130,7 @@ const Fin = function() {
                     if(context.has(varName)) {
                         let varValueCode;
                         try {
-                            varValueCode = 'context.get(\''+varName+'\').value'+varAccess;
+                            varValueCode = 'context.get(\''+varName+'\',this.element).value'+varAccess;
                         } catch(error) {
                             varValueCode = '{ERROR@{'+matchVP+'}:'+error+'}';
                         }
@@ -188,7 +205,7 @@ const Fin = function() {
                     const finCommand = attribute.name.substring(finPrefix.length);
                     // fin-let-<var-name>
                     if(finCommand.indexOf(finLetPrefix) === 0) {
-                        const finLetVarNameRaw = finCommand.substring(finLetPrefix.length);
+                                                const finLetVarNameRaw = finCommand.substring(finLetPrefix.length);
                         // turn `-my-var` to `MyVar` in var name
                         finLetVarName = context.varName(finLetVarNameRaw);
                         if(finLetVarName.length > 0 && finLetVarName.search(/^[a-zA-Z_\-][\w_\-]*$/gm) === 0) {
@@ -196,13 +213,10 @@ const Fin = function() {
                                 ? attribute.value.substring(1, attribute.value.length-1)
                                 : '"'+attribute.value+'"';
                             try {
-                                const varValue = context.runInContext(function() {
-                                    const local   = { value: undefined };
-                                    const varCode = '{ local.value = '+varValueStr+'}';
-                                    context.processCodeBlocks(varCode, element, true, local);
-                                    return local.value;
-                                });
-                                context.setOrNew(finLetVarName, varValue);
+                                const local   = { value: undefined };
+                                const varCode = '{ local.value = '+varValueStr+'}';
+                                context.processCodeBlocks(varCode, element, true, local);
+                                context.setOrNew(finLetVarName, local.value);
                             } catch(error) {
                                 console.error('Error when setting variable: '+attribute.name+'='+varValueCode+'\n', error, clone);
                             }
@@ -224,7 +238,7 @@ const Fin = function() {
                     } else if(finCommand === finHtmlPrefix) {
                         finCommand.substring(finHtmlPrefix.length);
                         const htmlCode = attribute.value;
-                        const output   = context.processCodeBlocks(htmlCode, element, true); 
+                        const output   = context.processCodeBlocks(htmlCode, element, false); 
                         element.innerHTML = output;
                     // fin-<attribute>
                     } else if(finCommand.length > 0) {

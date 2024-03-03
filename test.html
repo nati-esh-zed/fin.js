@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>fin.js</title>
+    <script src="js/fin.1.0.0.js"></script>
+    <style>
+        .table {
+            border-collapse: collapse;
+        }
+        .table th, 
+        .table td {
+            padding: .25rem;
+            border: 1px solid #777;
+            font-size: .75rem;
+            font-family: 'Courier New', Courier, monospace;
+        }
+    </style>
+</head>
+<body> 
+    <div id="root"
+        fin-let-str=""
+        fin-let-first-name="Adam"
+        fin-let-last-name="Tsegaye"
+        fin-let-user="{{firstName: $first-name, lastName: $last-name}}"
+        fin-let-full-name="{$firstName+' '+$lastName}"
+        fin-let--my-var="My Value"
+        fin-let-count="{0}"
+        >
+        <table class="table">
+            <thead>
+                <tr><th>CODE</th><th>OUTPUT</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>&lt;button fin-onclick="{$count++; fin.update(local.event.target)}"&gt;count: {$count}&lt;/button&gt;'}</td><td><button fin-onclick="{$count++; fin.update(local.event.target)}">count: {$count}</button></td></tr>
+                <tr><td>&lt;pre fin-html="{'&lt;p&gt;{hello} '+$fullName+'&lt;/p&gt;'}"&gt;&lt;/pre&gt;</td><td><pre fin-html="{'<p>{hello} '+$fullName+'</p>'}"></pre></td></tr>
+                <tr><td>\{$firstName}</td><td>{$firstName}</td></tr>
+                <tr><td>\{$last-name}</td><td>{$last-name}</td></tr>
+                <tr><td>\{$fullName}</td><td>{$fullName}</td></tr>
+                <tr><td>\{$user.firstName}</td><td>{$user.firstName}</td></tr>
+                <tr><td>\{$user['lastName']}</td><td>{$user['lastName']}</td></tr>
+                <tr><td>\{$-my-var}</td><td>{$-my-var}</td></tr>
+                <tr><td>\{$MyVar}</td><td>{$MyVar}</td></tr>
+                <tr><td>\{$my-var}</td><td>{$my-var}</td></tr>
+                <tr><td>\{$myVar}</td><td>{$myVar}</td></tr>
+                <tr><td>\{$user.age = 26}</td><td>{$user.age = 26}</td></tr>
+                <tr><td>\{$user.age++}</td><td>{$user.age++}</td></tr>
+                <tr><td>\{$user.age}</td><td>{$user.age}</td></tr>
+                <tr><td>\{}</td><td>{}</td></tr>
+                <tr><td>\{''}</td><td>{''}</td></tr>
+                <tr><td>\{console.log($user)}</td><td>{console.log($user)}</td></tr>
+                <tr><td>\{console.log($user); ''}</td><td>{console.log($user); ''}</td></tr>
+                <tr><td>\{new Date().getUTCFullYear()}</td><td>{new Date().getUTCFullYear()}</td></tr>
+                <tr><td>{'\\'}\{'escaped'}</td><td>\{'escaped'}</td></tr>
+                <tr><td>{'\\\\'}\{'not escaped'}</td><td>\\{'not escaped'}</td></tr>
+                <tr><td>*\{'commented out'}</td><td>*{'commented out'}</td></tr>
+                <tr><td>\*\{'not commented out'}</td><td>\*{'not commented out'}</td></tr>
+                <tr><td>\{'hello'} "w{elc}ome"</td><td>{'hello'} "w{elc}ome"</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <script>
+        const root = document.getElementById('root');
+        fin.update(root);
+    </script>
+</body>
+</html>

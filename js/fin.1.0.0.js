@@ -83,12 +83,12 @@ const Fin = function() {
             context.updateReferencingElements(name);
         };
         // get variable
-        this.get = function(name, element) {
+        this.get = function(name, element, updateAttributes) {
             name = context.varName(name);
             const variable = (context.variables.has(name) && context.variables.get(name))
                 || (context.parentContext && context.parentContext.get(name));
             if(element)
-                variable.referenceList.set(element, true);
+                variable.referenceList.set(element, updateAttributes == true);
             return variable;
         };
         // has variable
@@ -103,7 +103,7 @@ const Fin = function() {
                 || (context.parentContext && context.parentContext.get(name));
             if(variable && variable.referenceList.size > 0) {
                 for(let updateTarget of variable.referenceList) {
-                    fin.update(updateTarget[0], false);
+                    fin.update(updateTarget[0], updateTarget[1]);
                 }
             }
         };
@@ -117,8 +117,10 @@ const Fin = function() {
             local.element = element;
             return eval(__fin_code__);
         };
-        this.parseVariables = function(input, evaluate) {
+        this.parseVariables = function(input, options) {
             'use strict';
+            const evaluate = options && options.evaluate;
+            const updateAttributes = options && options.updateAttributes;
             // replace variables with getter code
             const code = input.replaceAll(
                 /(?:(')(?:\\'|.)*?'|(")(?:\\"|.)*?"|\$(\?)?([a-zA-Z_\-][\w_\-]*)((?:\.[\w_\-]+|\[.*?\])*))/gs, 
@@ -130,7 +132,7 @@ const Fin = function() {
                     if(context.has(varName)) {
                         let varValueCode;
                         try {
-                            varValueCode = 'context.get(\''+varName+'\',this.element).value'+varAccess;
+                            varValueCode = 'context.get(\''+varName+'\',this.element,'+updateAttributes+').value'+varAccess;
                         } catch(error) {
                             varValueCode = '{ERROR@{'+matchVP+'}:'+error+'}';
                         }
@@ -154,8 +156,10 @@ const Fin = function() {
             }
             return code;
         };
-        this.processCodeBlocks = function(input, element, wholeBlock, local) {
+        this.processCodeBlocks = function(input, element, options, local) {
             'use strict';
+            const wholeBlock = options && options.wholeBlock;
+            const updateAttributes = options && options.updateAttributes;
             // replace code blocks with evaluated output
             const output  = input.replaceAll(wholeBlock 
                     ? /(?:(')(?:\\'|.)*?'|(")(?:\\"|.)*?"|((?:\\?[\\\*])?\{)((?:(?:\\[}{])*?|.*?)*)\})/gs 
@@ -170,7 +174,10 @@ const Fin = function() {
                     else if(token3) {
                         code = code.replaceAll(/\\([}{])/gm, '$1');
                         // replace variables with values
-                        const varParsedCode = context.parseVariables(code);
+                        const varParsedCode = context.parseVariables(code, {
+                            evaluate: false,
+                            updateAttributes: updateAttributes
+                        });
                         let evalCodeBlockOutput;
                         try {
                             evalCodeBlockOutput = context.evaluateInContext(varParsedCode, element, local);
@@ -215,7 +222,7 @@ const Fin = function() {
                             try {
                                 const local   = { value: undefined };
                                 const varCode = '{ local.value = '+varValueStr+'}';
-                                context.processCodeBlocks(varCode, element, true, local);
+                                context.processCodeBlocks(varCode, element, { wholeBlock: true, updateAttributes: true }, local);
                                 context.setOrNew(finLetVarName, local.value);
                             } catch(error) {
                                 console.error('Error when setting variable: '+attribute.name+'='+varValueCode+'\n', error, clone);
@@ -228,7 +235,9 @@ const Fin = function() {
                         const finEventName = finCommand.substring(finOnPrefix.length);
                         const eventHandler = function(event) { 
                             const eventCode = attribute.value;
-                            return context.processCodeBlocks(eventCode, element, true, {event: event}); 
+                            return context.processCodeBlocks(eventCode, element, 
+                                { wholeBlock: true, updateAttributes: false }, 
+                                {event: event}); 
                         };
                         element.addEventListener(finEventName, eventHandler);
                         const lastEventHandler = context.eventHandlers.get(finEventName);
@@ -238,11 +247,13 @@ const Fin = function() {
                     } else if(finCommand === finHtmlPrefix) {
                         finCommand.substring(finHtmlPrefix.length);
                         const htmlCode = attribute.value;
-                        const output   = context.processCodeBlocks(htmlCode, element, false); 
+                        const output   = context.processCodeBlocks(htmlCode, element, 
+                            { wholeBlock: false, updateAttributes: true }); 
                         element.innerHTML = output;
                     // fin-<attribute>
                     } else if(finCommand.length > 0) {
-                        const output = context.processCodeBlocks(attribute.value, element, true);
+                        const output = context.processCodeBlocks(attribute.value, element, 
+                            { wholeBlock: true, updateAttributes: true });
                         element.setAttribute(finCommand, output);
                     // fin-
                     } else {

@@ -35,6 +35,16 @@
             <tbody>
                 <tr><td>&lt;button fin-onclick="{$count++; fin.update(local.event.target)}"&gt;count: {$count}&lt;/button&gt;'}</td><td><button fin-onclick="{$count++; fin.update(local.event.target)}">count: {$count}</button></td></tr>
                 <tr><td>&lt;pre fin-html="{'&lt;p&gt;{hello} '+$fullName+'&lt;/p&gt;'}"&gt;&lt;/pre&gt;</td><td><pre fin-html="{'<p>{hello} '+$fullName+'</p>'}"></pre></td></tr>
+                <tr>
+                    <td>&lt;div fin-let-async-frag="{fetch('frag.html').then(resp =&gt; resp.text())}" 
+                        fin-html="{$?frag || 'loading...'}"
+                        &gt;&lt;/div&gt;</td>
+                    <td>
+                        <div fin-let-async-frag="{fetch('frag.html').then(resp => resp.text())}" 
+                            fin-html="{$?frag || 'loading...'}"
+                            ></div>
+                    </td>
+                </tr>
                 <tr><td>\{$firstName}</td><td>{$firstName}</td></tr>
                 <tr><td>\{$last-name}</td><td>{$last-name}</td></tr>
                 <tr><td>\{$fullName}</td><td>{$fullName}</td></tr>

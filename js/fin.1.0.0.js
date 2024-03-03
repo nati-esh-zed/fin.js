@@ -28,6 +28,7 @@ const Fin = function() {
     const fin = this;
     const finPrefix = 'fin-';
     const finLetPrefix = 'let-';
+    const finLetAsyncPrefix = 'let-async-';
     const finOnPrefix = 'on';
     const finHtmlPrefix = 'html';
     const Variable = function(name, value) {
@@ -54,11 +55,13 @@ const Fin = function() {
         this.setVar = function(variable) {
             context.variables.set(variable.name, variable);
             context.updateReferencingElements(variable.name);
+            return variable;
         };
         // set new variable
         this.setNew = function(name, value) {
             const variable = new Variable(name, value);
             context.variables.set(name, variable);
+            return variable;
         };
         // set existing or new variable
         this.setOrNew = function(name, value) {
@@ -66,9 +69,11 @@ const Fin = function() {
                 const variable = context.variables.get(name);
                 variable.value = value;
                 context.updateReferencingElements(name);
+                return variable;
             } else {
                 const variable = new Variable(name, value);
                 context.variables.set(name, variable);
+                return variable;
             }
         };
         // set variable
@@ -77,11 +82,34 @@ const Fin = function() {
             if(context.has(name)) {
                 const variable = context.get(name);
                 variable.value = value;
+                context.updateReferencingElements(name);
+                return variable;
             } else {
                 const variable = new Variable(name, value);
                 context.variables.set(name, variable);
+                context.updateReferencingElements(name);
+                return variable;
             }
-            context.updateReferencingElements(name);
+        };
+        // set Variable object from value promise
+        this.setVarAsync = async function(variable) {
+            variable.value = await variable.value;
+            context.setVar(variable);
+        }
+        // set new variable from promise
+        this.setNewAsync = async function(name, promise) {
+            const value = await promise;
+            context.setNew(name, value);
+        }
+        // set existing or new variable from promise
+        this.setOrNewAsync = async function(name, promise) {
+            const value = await promise;
+            context.setOrNew(name, value);
+        }
+        // set variable from promise
+        this.setAsync = async function(name, promise) {
+            const value = await promise;
+            context.set(name, value);
         };
         // get variable
         this.get = function(name, element, updateAttributes) {
@@ -90,7 +118,7 @@ const Fin = function() {
                 || (context.parentContext && context.parentContext.get(name));
             if(element) {
                 variable.referenceList.set(element, updateAttributes == true);
-                context.referenceList.set(variable, updateAttributes == true);
+                context.referenceList.set(variable, false);
             }
             return variable;
         };
@@ -127,10 +155,6 @@ const Fin = function() {
                 element.remove();
 
             }
-        };
-        this.runInContext = function(fn) {
-            'use strict';
-            return fn ? fn() : undefined;
         };
         this.evaluateInContext = function(__fin_code__, element, local) {
             'use strict';
@@ -214,7 +238,7 @@ const Fin = function() {
         }
     };
     this.contexts = new Map();
-    this.update = function(element, reprocessAttributes, parentContext) {
+    this.update = async function(element, reprocessAttributes, parentContext) {
         console.assert(element, "fin.update(element, parentContext): null `element` given");
         if(!element) return;
         parentContext = parentContext === undefined ? fin.contexts.get(element.parentElement) : parentContext;
@@ -231,9 +255,39 @@ const Fin = function() {
             for(let attribute of clone.attributes) {
                 if(attribute.name.indexOf(finPrefix) === 0) {
                     const finCommand = attribute.name.substring(finPrefix.length);
+                    // fin-let-async-<var-name>
+                    if(finCommand.indexOf(finLetAsyncPrefix) === 0) {
+                        const finLetAsyncVarNameRaw = finCommand.substring(finLetAsyncPrefix.length);
+                        // turn `-my-var` to `MyVar` in var name
+                        finLetAsyncVarName = context.varName(finLetAsyncVarNameRaw);
+                        if(finLetAsyncVarName.length > 0 && finLetAsyncVarName.search(/^[a-zA-Z_\-][\w_\-]*$/gm) === 0) {
+                            // console.log(existingVariable);
+                            if(!context.letAsyncWaiting) {
+                                context.letAsyncWaiting = true;
+                                const variable = context.setOrNew(finLetAsyncVarName, undefined);
+                                (async function() {
+                                    try {
+                                        const varValueStr = attribute.value.charAt(0) === '{' 
+                                            ? attribute.value.substring(1, attribute.value.length-1)
+                                            : '"'+attribute.value+'"';
+                                        const local   = { promise: undefined };
+                                        const varCode = '{ local.promise = '+varValueStr+'}';
+                                        context.processCodeBlocks(varCode, element, { wholeBlock: true, updateAttributes: true }, local);
+                                        variable.value = await local.promise;
+                                        context.setVar(variable);
+                                        context.letAsyncWaiting = false;
+                                    } catch(error) {
+                                        console.error('Error when setting variable: '+attribute.name+'='+varValueCode+'\n', error, clone);
+                                    }
+                                })();
+                            }
+                        } else {
+                            console.error('Error invalid variable identifier: '+finLetAsyncVarName, clone);
+                        }
+                    } 
                     // fin-let-<var-name>
-                    if(finCommand.indexOf(finLetPrefix) === 0) {
-                                                const finLetVarNameRaw = finCommand.substring(finLetPrefix.length);
+                    else if(finCommand.indexOf(finLetPrefix) === 0) {
+                        const finLetVarNameRaw = finCommand.substring(finLetPrefix.length);
                         // turn `-my-var` to `MyVar` in var name
                         finLetVarName = context.varName(finLetVarNameRaw);
                         if(finLetVarName.length > 0 && finLetVarName.search(/^[a-zA-Z_\-][\w_\-]*$/gm) === 0) {
@@ -251,10 +305,11 @@ const Fin = function() {
                         } else {
                             console.error('Error invalid variable identifier: '+finLetVarName, clone);
                         }
+                    } 
                     // fin-on<event>
-                    } else if(finCommand.indexOf(finOnPrefix) === 0) {
+                    else if(finCommand.indexOf(finOnPrefix) === 0) {
                         const finEventName = finCommand.substring(finOnPrefix.length);
-                        const eventHandler = function(event) { 
+                        const eventHandler = async function(event) { 
                             const eventCode = attribute.value;
                             return context.processCodeBlocks(eventCode, element, 
                                 { wholeBlock: true, updateAttributes: false }, 
@@ -264,20 +319,25 @@ const Fin = function() {
                         const lastEventHandler = context.eventHandlers.get(finEventName);
                         element.removeEventListener(finEventName, lastEventHandler);
                         context.eventHandlers.set(finEventName, eventHandler);
+                    } 
                     // fin-html
-                    } else if(finCommand === finHtmlPrefix) {
+                    else if(finCommand === finHtmlPrefix) {
                         finCommand.substring(finHtmlPrefix.length);
                         const htmlCode = attribute.value;
-                        const output   = context.processCodeBlocks(htmlCode, element, 
+                        let output   = context.processCodeBlocks(htmlCode, element, 
                             { wholeBlock: false, updateAttributes: true }); 
+                        output = context.processCodeBlocks(output, element,
+                            { wholeBlock: false, updateAttributes: false });
                         element.innerHTML = output;
+                    } 
                     // fin-<attribute>
-                    } else if(finCommand.length > 0) {
+                    else if(finCommand.length > 0) {
                         const output = context.processCodeBlocks(attribute.value, element, 
                             { wholeBlock: true, updateAttributes: true });
                         element.setAttribute(finCommand, output);
+                    } 
                     // fin-
-                    } else {
+                    else {
                         console.error('Error invalid attribute: ', attribute, clone);
                     }
                     element.removeAttribute(attribute.name);

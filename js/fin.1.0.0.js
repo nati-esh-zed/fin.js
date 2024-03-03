@@ -40,6 +40,7 @@ const Fin = function() {
         this.element = element;
         this.parentContext = parentContext;
         this.variables = new Map();
+        this.referenceList = new Map();
         this.eventHandlers = new Map();
         // clone elements
         this.clone = element.cloneNode();
@@ -87,8 +88,10 @@ const Fin = function() {
             name = context.varName(name);
             const variable = (context.variables.has(name) && context.variables.get(name))
                 || (context.parentContext && context.parentContext.get(name));
-            if(element)
+            if(element) {
                 variable.referenceList.set(element, updateAttributes == true);
+                context.referenceList.set(variable, updateAttributes == true);
+            }
             return variable;
         };
         // has variable
@@ -105,6 +108,24 @@ const Fin = function() {
                 for(let updateTarget of variable.referenceList) {
                     fin.update(updateTarget[0], updateTarget[1]);
                 }
+            }
+        };
+        // safely remove elements with their clone and variable references
+        this.removeElement = function(element) {
+            if(element instanceof HTMLElement) {
+                const elementContext = fin.contexts.get(element);
+                if(elementContext) {
+                    if(elementContext.referenceList) {
+                        for(let reference of elementContext.referenceList) {
+                            const variable = reference[0];
+                            variable.referenceList.delete(element);
+                        }
+                    }
+                    elementContext.clone.remove();
+                    fin.contexts.delete(elementContext);
+                }
+                element.remove();
+
             }
         };
         this.runInContext = function(fn) {

@@ -156,6 +156,93 @@ const Fin = function() {
 
             }
         };
+        // safely add element
+        // <element> = HTMLElement or HTMLFragment
+        // [options] = { 
+        //      method: default('append') ['append' | 'replaceChild' | 'replaceChildren'],
+        //      child: HTMLElement for method 'replaceCHild'
+        // }
+        this.addElement = function(element, toParent, options) {
+            console.assert(element !== toParent, 
+                '<element> and <toParent> cannot be the same',
+                element, toParent);
+            console.assert(element !== undefined && (element instanceof HTMLElement || element instanceof DocumentFragment), 
+                '<element> must be instance of HTMLElement or DocumentFragment',
+                element);
+            console.assert(toParent !== undefined && (toParent instanceof HTMLElement), 
+                '<toParent> must be instance of HTMLElement',
+                toParent);
+            console.assert(options === undefined || options instanceof Object,
+                '[options] should be undefined or instance of Object',
+                options);
+            const parentContext  = fin.contexts.get(toParent);
+            console.assert(parentContext !== undefined && parentContext instanceof Context, 
+                '<toParent> does not have a valid context');
+            if(element === toParent 
+                || !(element !== undefined && (element instanceof HTMLElement || element instanceof DocumentFragment))
+                || !(toParent !== undefined && (toParent instanceof HTMLElement))
+                || !(options === undefined || options instanceof Object)
+                || !(parentContext !== undefined && parentContext instanceof Context))
+                return;
+            options = options === undefined ? {} : options;
+            const method = options === undefined || options.method === undefined 
+                ? 'append' : options.method;
+            console.assert(method === 'append' || method === 'appendChild' || method === 'appendChildren',
+                '[options.method] must be either of [\'append\', \'appendChild\', \'appendChildren\']');
+            if(!(method === 'append' || method === 'appendChild' || method === 'appendChildren'))
+                return;
+            if(method === 'replaceChild') {
+                console.assert(options.child !== undefined && options.child instanceof HTMLElement,
+                    '[options.child] must be instance of HTMLElement for method \'replaceChild\'');
+                if(!(options.child !== undefined && options.child instanceof HTMLElement))
+                    return;
+            }
+            if(element instanceof HTMLElement) {
+                if(method === 'append') {
+                    toParent.appendChild(element);
+                } else if(method === 'replaceChild') {
+                    const child = options.child;
+                    const childContext = fin.contexts.get(child);
+                    childContext.parentContext = undefined;
+                    toParent.replaceChild(element, child);
+                } else if(method === 'replaceChildren') {
+                    for(let child of toParent.children) {
+                        const childContext = fin.contexts.get(child);
+                        childContext.parentContext = undefined;
+                    }
+                    toParent.replaceChildren(element);
+                }
+                fin.update(element, true, parentContext);
+            } else if(element instanceof DocumentFragment) {
+                const children = [];
+                for(let childElement of element.children) {
+                    children.push(childElement);
+                }
+                if(method === 'append') {
+                    for(let childElement of children) {
+                        toParent.appendChild(childElement);
+                        fin.update(childElement, true, parentContext);
+                    }
+                } else if(method === 'replaceChild') {
+                    const child = options.child;
+                    const childContext = fin.contexts.get(child);
+                    childContext.parentContext = undefined;
+                    toParent.replaceChild(element, child);
+                    for(let childElement of children) {
+                        fin.update(childElement, true, parentContext);
+                    }
+                } else if(method === 'replaceChildren') {
+                    for(let child of toParent.children) {
+                        const childContext = fin.contexts.get(child);
+                        childContext.parentContext = undefined;
+                    }
+                    toParent.replaceChildren(element);
+                    for(let childElement of children) {
+                        fin.update(childElement, true, parentContext);
+                    }
+                }
+            }
+        };
         this.evaluateInContext = function(__fin_code__, element, local) {
             'use strict';
             local = local === undefined ? {} : local;
@@ -239,8 +326,11 @@ const Fin = function() {
     };
     this.contexts = new Map();
     this.update = async function(element, reprocessAttributes, parentContext) {
-        console.assert(element, "fin.update(element, parentContext): null `element` given");
-        if(!element) return;
+        console.assert(element !== undefined && element instanceof HTMLElement, 
+            '<element> must be instance of HTMLElement',
+            element);
+        if(!(element !== undefined && element instanceof HTMLElement)) 
+            return;
         parentContext = parentContext === undefined ? fin.contexts.get(element.parentElement) : parentContext;
         // check if context was previously created
         const initialized = fin.contexts.has(element);

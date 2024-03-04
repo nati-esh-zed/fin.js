@@ -5,36 +5,106 @@
  * final js library for fine execution of javascript code 
  * inside HTML attributes and bodies without the script tag.
  *
+ * SETUP:
+ * 
+ * - first include script in head.
+ * ```
+ *      <script src="js/fin.1.0.0.js"></script>
+ * ```
+ * - then create a root element in body.
+ * ```
+ *      <body>
+ *          <div id="root">
+ *          </div>
+ *      </body>
+ * ```
+ * - finally initialize and update the root element.
+ * ```
+ *      <script>
+ *          const [root, rootContext] = fin.update(document.getElementById('root'));
+ *      </script>
+ * ```
+ * 
+ * SYNTAX:
+ * 
+ *   CODE BLOCKS:
+ * 
+ *   - {...}
+ *   - {...$var-name...} 
+ *   - {...$varName...} 
+ *   - {\{...\}} 
+ * 
+ *   ATTRIBUTES:
+ * 
+ *   - fin-let-async-<var-name>="[string]"|"{...}"
+ *      processes the code block and asynchronously sets the variable <var-name> with the value of the output.
+ *      initially the value will be undefined.
+ *   - fin-let-<var-name>="[string]"|"{...}"
+ *      processes the code block and sets the variable <var-name> with the value of the output.
+ *   - fin-on<event>="{...}"
+ *      processes the code block when the event is triggered.
+ *      A `local` object variable is provided with the event property set. 
+ *   - fin-html-async="{...}"
+ *      processes the code block and asynchronously sets the innerHTML with the value of the output.
+ *      initially the innerHTML will be the given innerHTML.
+ *   - fin-html="{...}"
+ *      processes the code block and sets the innerHTML with the value of the output.
+ *   - fin-<attribute>="{...}" 
+ *      processes the code block and sets the attribute <attribute> with the value of the output.
+ * 
+ * NOTES:
+ * 
+ * - When fin.update is called a new context and a clone element is created for each element in the target
+ *   if a context has not been created for that element. Each attribute is processed and
+ *   the ones prefixed fin- will be processed and removed from the original element. i.e. it will only remain
+ *   in the clone element. After processing the attributes the body is processed.
+ * - fin.update returns the root element and its context in an array;
+ * - variable identifier characters include [a-zA-Z0-9_-] and cannot begin with a digit.
+ *   And variable identifiers including -[a-zA-Z] will be converted to uppercase without the dash.
+ *   like `an-apple` -> `anApple` and `-an-apple` -> `AnApple`
+ * 
+ * EXAMPLE:
  *  <head> 
- *     <script src="js/fin.1.0.0.js"></script>
+ *      <script src="js/fin.1.0.0.js"></script>
  *  </head>
  *  <body> 
-*      <main id="main"
-*          fin-let-name="Adam"
-*          fin-let-message="{'Hello '+$name}"
-*          fin-class="{'border p-2'}">
-*          <p>{$message+='!'}</p>
-*          {console.log($message); ''}
-*          <button fin-let-count="{0}" fin-onclick="{$count++; fin.update(local.event.target)}">count: {$count}</button>
-*      </main>
-*      <script>
-*          fin.update(document.getElementById('main'));
-*      </script>
-*  </body>
+ *      <main id="root"
+ *          fin-let-name="Adam"
+ *          fin-let-message="{'Hello '+$name}"
+ *          fin-class="{'border p-2'}"
+ *          >
+ *          <button 
+ *              fin-let-count="{0}" 
+ *              fin-onclick="{this.set('count', $count+1)}"
+ *              ><p>count: {$count}</p></button>
+ *          <p>{$message}</p>
+ *          <p>{$message += '!'}</p>
+ *          <p>{$message}</p>
+ *          <p>{this.set('message', ':: '+$message)}</p>
+ *          <p>{$message}</p>
+ *          <p>{console.log($message); fin.zeroWidthWhiteSpace}</p>
+ *      </main>
+ *      <script>
+ *          const [root, rootContext] = fin.update(document.getElementById('root'));
+ *      </script>
  *  </body>
+ *
  */
 
 const Fin = function() {
     const fin = this;
-    const finPrefix = 'fin-';
-    const finLetPrefix = 'let-';
-    const finLetAsyncPrefix = 'let-async-';
-    const finOnPrefix = 'on';
-    const finHtmlPrefix = 'html';
     const Variable = function(name, value) {
         this.name = name;
         this.value = value;
         this.referenceList = new Map();
+        this.toString = function() {
+            return '{ '+
+                'name: "'+this.name+'", '+
+                'value: '+(typeof this.value === 'string'
+                    ? '"'+this.value+'"'
+                    : this.value)+
+                ' }';
+        };
     };
     const Context = function(element, parentContext) {
         const context = this;
@@ -42,7 +112,6 @@ const Fin = function() {
         this.parentContext = parentContext;
         this.variables = new Map();
         this.referenceList = new Map();
-        this.eventHandlers = new Map();
         // clone elements
         this.clone = element.cloneNode();
         this.clone.innerHTML = element.innerHTML;
@@ -76,40 +145,42 @@ const Fin = function() {
                 return variable;
             }
         };
-        // set variable
+        // set variable only if declared
         this.set = function(name, value) {
             name = context.varName(name);
-            if(context.has(name)) {
-                const variable = context.get(name);
-                variable.value = value;
-                context.updateReferencingElements(name);
-                return variable;
-            } else {
-                const variable = new Variable(name, value);
-                context.variables.set(name, variable);
-                context.updateReferencingElements(name);
-                return variable;
-            }
+            console.assert(context.has(name), 
+                'variable \''+name+'\' must be declared before setting!',
+                context);
+            if(!context.has(name))
+                return undefined;
+            const variable = context.get(name);
+            variable.value = value;
+            context.updateReferencingElements(name);
+            return variable;
         };
         // set Variable object from value promise
-        this.setVarAsync = async function(variable) {
+        this.setVarAsync = async function(variable, initValue) {
+            variable.value = initValue;
             variable.value = await variable.value;
             context.setVar(variable);
         }
         // set new variable from promise
-        this.setNewAsync = async function(name, promise) {
-            const value = await promise;
-            context.setNew(name, value);
+        this.setNewAsync = async function(name, promise, initValue) {
+            const variable = context.setNew(name, initValue);
+            variable.value = await promise;
+            context.setVar(variable);
         }
         // set existing or new variable from promise
-        this.setOrNewAsync = async function(name, promise) {
-            const value = await promise;
-            context.setOrNew(name, value);
+        this.setOrNewAsync = async function(name, promise, initValue) {
+            const variable = context.setOrNew(name, initValue);
+            variable.value = await promise;
+            context.setVar(variable);
         }
         // set variable from promise
-        this.setAsync = async function(name, promise) {
-            const value = await promise;
-            context.set(name, value);
+        this.setAsync = async function(name, promise, initValue) {
+            const variable = context.set(name, initValue);
+            variable.value = await promise;
+            context.setVar(variable);
         };
         // get variable
         this.get = function(name, element, updateAttributes) {
@@ -134,7 +205,9 @@ const Fin = function() {
                 || (context.parentContext && context.parentContext.get(name));
             if(variable && variable.referenceList.size > 0) {
                 for(let updateTarget of variable.referenceList) {
-                    fin.update(updateTarget[0], updateTarget[1]);
+                    const target = updateTarget[0];
+                    const reprocessAttributes = updateTarget[1];
+                    fin.update(target, reprocessAttributes);
                 }
             }
         };
@@ -263,8 +336,9 @@ const Fin = function() {
                     varName = context.varName(varName);
                     if(context.has(varName)) {
                         let varValueCode;
+                        const bUpdateAttributes = !updateAttributes ? false : true;
                         try {
-                            varValueCode = 'context.get(\''+varName+'\',this.element,'+updateAttributes+').value'+varAccess;
+                            varValueCode = 'context.get(\''+varName+'\',element,'+bUpdateAttributes+').value'+varAccess;
                         } catch(error) {
                             varValueCode = '{ERROR@{'+matchVP+'}:'+error+'}';
                         }
@@ -325,12 +399,12 @@ const Fin = function() {
         }
     };
     this.contexts = new Map();
-    this.update = async function(element, reprocessAttributes, parentContext) {
+    this.update = function(element, reprocessAttributes, parentContext) {
         console.assert(element !== undefined && element instanceof HTMLElement, 
             '<element> must be instance of HTMLElement',
             element);
         if(!(element !== undefined && element instanceof HTMLElement)) 
-            return;
+            return [element, undefined];
         parentContext = parentContext === undefined ? fin.contexts.get(element.parentElement) : parentContext;
         // check if context was previously created
         const initialized = fin.contexts.has(element);
@@ -341,6 +415,12 @@ const Fin = function() {
         const context = fin.contexts.get(element);
         const clone   = context.clone;
         if(!initialized || reprocessAttributes) {
+            const finPrefix = 'fin-';
+            const finLetPrefix = 'let-';
+            const finLetAsyncPrefix = 'let-async-';
+            const finOnPrefix = 'on';
+            const finHtmlAsyncPrefix = 'html-async';
+            const finHtmlPrefix = 'html';
             // update attributes
             for(let attribute of clone.attributes) {
                 if(attribute.name.indexOf(finPrefix) === 0) {
@@ -351,28 +431,31 @@ const Fin = function() {
                         // turn `-my-var` to `MyVar` in var name
                         finLetAsyncVarName = context.varName(finLetAsyncVarNameRaw);
                         if(finLetAsyncVarName.length > 0 && finLetAsyncVarName.search(/^[a-zA-Z_\-][\w_\-]*$/gm) === 0) {
-                            // console.log(existingVariable);
                             if(!context.letAsyncWaiting) {
                                 context.letAsyncWaiting = true;
                                 const variable = context.setOrNew(finLetAsyncVarName, undefined);
+                                const varValueStr = attribute.value.charAt(0) === '{' 
+                                    ? attribute.value.substring(1, attribute.value.length-1)
+                                    : '"'+attribute.value+'"';
                                 (async function() {
                                     try {
-                                        const varValueStr = attribute.value.charAt(0) === '{' 
-                                            ? attribute.value.substring(1, attribute.value.length-1)
-                                            : '"'+attribute.value+'"';
                                         const local   = { promise: undefined };
                                         const varCode = '{ local.promise = '+varValueStr+'}';
-                                        context.processCodeBlocks(varCode, element, { wholeBlock: true, updateAttributes: true }, local);
+                                        context.processCodeBlocks(varCode, element, 
+                                            { wholeBlock: true, updateAttributes: true }, 
+                                            local);
                                         variable.value = await local.promise;
                                         context.setVar(variable);
                                         context.letAsyncWaiting = false;
                                     } catch(error) {
-                                        console.error('Error when setting variable: '+attribute.name+'='+varValueCode+'\n', error, clone);
+                                        console.error('Error when setting variable: '+attribute.name+'='+varValueCode+'\n', 
+                                            error, clone);
                                     }
                                 })();
                             }
                         } else {
-                            console.error('Error invalid variable identifier: '+finLetAsyncVarName, clone);
+                            console.error('Error invalid variable identifier: '+finLetAsyncVarName, 
+                                clone);
                         }
                     } 
                     // fin-let-<var-name>
@@ -398,33 +481,64 @@ const Fin = function() {
                     } 
                     // fin-on<event>
                     else if(finCommand.indexOf(finOnPrefix) === 0) {
-                        const finEventName = finCommand.substring(finOnPrefix.length);
-                        const eventHandler = async function(event) { 
-                            const eventCode = attribute.value;
-                            return context.processCodeBlocks(eventCode, element, 
-                                { wholeBlock: true, updateAttributes: false }, 
-                                {event: event}); 
-                        };
-                        element.addEventListener(finEventName, eventHandler);
-                        const lastEventHandler = context.eventHandlers.get(finEventName);
-                        element.removeEventListener(finEventName, lastEventHandler);
-                        context.eventHandlers.set(finEventName, eventHandler);
+                        if(!initialized) {
+                            if(!context.onEventHandling) {
+                                context.onEventHandling = true;
+                                const finEventName = finCommand.substring(finOnPrefix.length);
+                                const eventHandler = function(event) {
+                                    'use strict';
+                                    const eventCode = attribute.value;
+                                    const local = { event: event };
+                                    context.processCodeBlocks(eventCode, element, 
+                                        { wholeBlock: true, updateAttributes: false },
+                                        local);
+                                };
+                                element.addEventListener(finEventName, eventHandler);
+                                context.onEventHandling = false;
+                            }
+                        }
+                    } 
+                    // fin-html-async
+                    else if(finCommand === finHtmlAsyncPrefix) {
+                        if(!context.htmlAsyncProcessing) {
+                            context.htmlAsyncProcessing = true;
+                            (async function() {
+                                const htmlCode = '{ local.promise = '+attribute.value.substring(1,attribute.value.length-1)+'}';
+                                // const htmlCode = attribute.value;
+                                const local   = { promise: undefined };
+                                context.processCodeBlocks(htmlCode, element, 
+                                    { wholeBlock: false, updateAttributes: true },
+                                    local); 
+                                const response = await local.promise;
+                                context.clone.innerHTML = response;
+                                element.innerHTML = response;
+                                fin.update(element, false, context.parentContext);
+                                context.htmlAsyncProcessing = false;
+                            })();
+                        }
                     } 
                     // fin-html
                     else if(finCommand === finHtmlPrefix) {
-                        finCommand.substring(finHtmlPrefix.length);
-                        const htmlCode = attribute.value;
-                        let output   = context.processCodeBlocks(htmlCode, element, 
-                            { wholeBlock: false, updateAttributes: true }); 
-                        output = context.processCodeBlocks(output, element,
-                            { wholeBlock: false, updateAttributes: false });
-                        element.innerHTML = output;
+                        if(!context.htmlProcessing) {
+                            context.htmlProcessing = true;
+                            const htmlCode = attribute.value;
+                            let output   = context.processCodeBlocks(htmlCode, element, 
+                                { wholeBlock: false, updateAttributes: true }); 
+                            output = context.processCodeBlocks(output, element,
+                                { wholeBlock: false, updateAttributes: false });
+                            element.innerHTML = output;
+                            context.htmlProcessing = false;
+                        }
                     } 
                     // fin-<attribute>
                     else if(finCommand.length > 0) {
-                        const output = context.processCodeBlocks(attribute.value, element, 
-                            { wholeBlock: true, updateAttributes: true });
-                        element.setAttribute(finCommand, output);
+                        if(!context.attributeProcessing) {
+                            context.attributeProcessing = true;
+                            const output = context.processCodeBlocks(attribute.value, element, 
+                                { wholeBlock: true, updateAttributes: true });
+                            element.setAttribute(finCommand, output);
+                            context.attributeProcessing = false;
+                        }
                     } 
                     // fin-
                     else {
@@ -435,18 +549,160 @@ const Fin = function() {
             }
         }
         // update child nodes
-        let childIndex = 0;
-        for(let child of clone.childNodes) {
-            const mainChild = element.childNodes[childIndex++];
-            if(child.nodeName === '#text') {
-                const content = child.textContent;
-                const output  = context.processCodeBlocks(content, element);
-                mainChild.textContent = output;
-            } else if(child instanceof HTMLElement) {
-                fin.update(mainChild, reprocessAttributes, context);
+        if(!context.htmlProcessing) {
+            context.htmlProcessing = true;
+            let childIndex = 0;
+            for(let child of clone.childNodes) {
+                const mainChild = element.childNodes[childIndex++];
+                if(child.nodeName === '#text') {
+                    const content = child.textContent;
+                    const output  = context.processCodeBlocks(content, element, {
+                        wholeBlock: false,
+                        reprocessAttributes: false
+                    });
+                    mainChild.textContent = output;
+                } else if(child instanceof HTMLElement) {
+                    fin.update(mainChild, reprocessAttributes, context);
+                }
+            }
+            context.htmlProcessing = false;
+        }
+        return [element, context];
+    };
+    const getContext = function(element) {
+        return fin.contexts.get(element);
+    };
+    this.getContext = getContext;
+    const formatJson = function(json, doNotQuoteKeys, indent, tab, newLine) {
+        if(json === undefined)
+            return undefined;
+        let  jsonStr = 'null';
+        if(json) {
+            indent  = indent  !== undefined ? indent : '';
+            tab     = tab     !== undefined ? tab : "    ";
+            newLine = newLine !== undefined ? newLine : "\n";
+            const formatJsonValue = function(value) {
+                if(value === undefined || value === null) {
+                    return 'null';
+                } else if(typeof value === 'boolean' || value instanceof Boolean) {
+                    return value ? 'true' : 'false';
+                } else if(typeof value === 'number' || value instanceof Number) {
+                    return value;
+                } else if(value instanceof String) {
+                    return '"'+value+'"';
+                } else if(value instanceof Array) {
+                    return formatJson(value, doNotQuoteKeys, indent+tab, tab, newLine);
+                } else if(value instanceof Object) {
+                    return formatJson(value, doNotQuoteKeys, indent+tab, tab, newLine);
+                } else {
+                    return '"'+value+'"';
+                }
+            };
+            const newLineJsonValue = function(value) {
+                if(value === undefined || value === null) {
+                    return false;
+                } else if(typeof value === 'boolean' || value instanceof Boolean) {
+                    return false;
+                } else if(typeof value === 'number' || value instanceof Number) {
+                    return false;
+                } else if(value instanceof String) {
+                    return false;
+                } else if(value instanceof Array) {
+                    return true;
+                } else if(value instanceof Object) {
+                    return true;
+                } else {
+                    return true;
+                }
+            };
+            if(json instanceof Array) {
+                jsonStr = '[';
+                const entries = json;
+                if(entries.length > 0) {
+                    const newLineElems = newLineJsonValue(entries[0]);
+                    jsonStr += newLineElems ? newLine : '';
+                    for(let i = 0; i < entries.length; i++) {
+                        const value = entries[i]; 
+                        if(typeof value === 'function')
+                            continue;
+                        jsonStr += i > 0 ? ', ' : '';
+                        jsonStr += newLineElems ? indent+tab : '';
+                        jsonStr += formatJsonValue(value);
+                        jsonStr += newLineElems ? newLine : '';
+                    }
+                    jsonStr += newLineElems ? indent : '';
+                }
+                jsonStr += ']';
+            } else if(json instanceof Object) {
+                jsonStr = '{';
+                const entries = Object.entries(json);
+                if(entries.length > 0) {
+                    jsonStr += newLine;
+                    for(let i = 0; i < entries.length; i++) {
+                        const entry = entries[i];
+                        const key   = entry[0];
+                        const value = entry[1];
+                        if(typeof value === 'function')
+                            continue;
+                        jsonStr += i > 0 ? ', ' : '';
+                        jsonStr += indent+tab;
+                        jsonStr += doNotQuoteKeys ? key : '"'+key+'"';
+                        jsonStr += ': ';
+                        jsonStr += formatJsonValue(value);
+                        jsonStr += newLine;
+                    }
+                    jsonStr += indent;
+                }
+                jsonStr += '}';
+            } else {
+                jsonStr = formatJsonValue(json);
             }
         }
+        return jsonStr;
     };
+    this.formatJson = formatJson;
+    const delay = function(ms, then) {
+        return new Promise(function(resolve) {
+            setTimeout(function() {
+                resolve(then());
+            }, ms);
+        });
+    };
+    this.delay = delay;
+    const sleep = function(ms) {
+        return new Promise(function(resolve) {
+            setTimeout(resolve, ms);
+        });
+    };
+    this.sleep = sleep;
+    const fetchText = function(url, ms) {
+        if(ms === undefined)
+            return new Promise(function(resolve) {
+                resolve(fetch(url).then(resp => resp.text()));
+            });
+        else
+            return new Promise(function(resolve) {
+                setTimeout(function () {
+                    resolve(fetch(url).then(resp => resp.text()));
+                }, ms);
+            });
+    };
+    this.fetchText = fetchText;
+    const fetchJson = function(url, ms) {
+        if(ms === undefined)
+            return new Promise(function(resolve) {
+                resolve(fetch(url).then(resp => resp.json()));
+            });
+        else
+            return new Promise(function(resolve) {
+                setTimeout(function () {
+                    resolve(fetch(url).then(resp => resp.text()));
+                }, ms);
+            });
+    };
+    this.fetchJson = fetchJson;
+    const zeroWidthWhiteSpace = "\u200B";
+    this.zeroWidthWhiteSpace = zeroWidthWhiteSpace;
 };
 
 const fin = new Fin();

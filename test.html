@@ -26,25 +26,12 @@
         fin-let-user="{{firstName: $first-name, lastName: $last-name}}"
         fin-let-full-name="{$firstName+' '+$lastName}"
         fin-let--my-var="My Value"
-        fin-let-count="{0}"
         >
         <table class="table">
             <thead>
                 <tr><th>CODE</th><th>OUTPUT</th></tr>
             </thead>
             <tbody>
-                <tr><td>&lt;button fin-onclick="{$count++; fin.update(local.event.target)}"&gt;count: {$count}&lt;/button&gt;'}</td><td><button fin-onclick="{$count++; fin.update(local.event.target)}">count: {$count}</button></td></tr>
-                <tr><td>&lt;pre fin-html="{'&lt;p&gt;{hello} '+$fullName+'&lt;/p&gt;'}"&gt;&lt;/pre&gt;</td><td><pre fin-html="{'<p>{hello} '+$fullName+'</p>'}"></pre></td></tr>
-                <tr>
-                    <td>&lt;div fin-let-async-frag="{fetch('frag.html').then(resp =&gt; resp.text())}" 
-                        fin-html="{$?frag || 'loading...'}"
-                        &gt;&lt;/div&gt;</td>
-                    <td>
-                        <div fin-let-async-frag="{fetch('frag.html').then(resp => resp.text())}" 
-                            fin-html="{$?frag || 'loading...'}"
-                            ></div>
-                    </td>
-                </tr>
                 <tr><td>\{$firstName}</td><td>{$firstName}</td></tr>
                 <tr><td>\{$last-name}</td><td>{$last-name}</td></tr>
                 <tr><td>\{$fullName}</td><td>{$fullName}</td></tr>
@@ -58,15 +45,100 @@
                 <tr><td>\{$user.age++}</td><td>{$user.age++}</td></tr>
                 <tr><td>\{$user.age}</td><td>{$user.age}</td></tr>
                 <tr><td>\{}</td><td>{}</td></tr>
-                <tr><td>\{''}</td><td>{''}</td></tr>
-                <tr><td>\{console.log($user)}</td><td>{console.log($user)}</td></tr>
-                <tr><td>\{console.log($user); ''}</td><td>{console.log($user); ''}</td></tr>
+                <tr><td>[&lt;div&gt;\{''}&lt;/div&gt;]</td><td>[<div>{''}</div>]</td></tr>
+                <tr><td>[&lt;div&gt;\{zeroWidthWhiteSpace}&lt;/div&gt;]</td><td>[<div>{zeroWidthWhiteSpace}</div>]</td></tr>
+                <tr><td>\{console.log(formatJson($user))}</td><td>{console.log(formatJson($user))}</td></tr>
+                <tr><td>\{console.log(formatJson($user)); ''}</td><td>{console.log(formatJson($user)); ''}</td></tr>
                 <tr><td>\{new Date().getUTCFullYear()}</td><td>{new Date().getUTCFullYear()}</td></tr>
                 <tr><td>{'\\'}\{'escaped'}</td><td>\{'escaped'}</td></tr>
                 <tr><td>{'\\\\'}\{'not escaped'}</td><td>\\{'not escaped'}</td></tr>
                 <tr><td>*\{'commented out'}</td><td>*{'commented out'}</td></tr>
                 <tr><td>\*\{'not commented out'}</td><td>\*{'not commented out'}</td></tr>
                 <tr><td>\{'hello'} "w{elc}ome"</td><td>{'hello'} "w{elc}ome"</td></tr>
+                <tr>
+                    <td>&lt;pre fin-html="&lt;p&gt;hello \{$fullName\}!&lt;/p&gt;"&gt;&lt;/pre&gt;</td>
+                    <td><pre fin-html="<p>hello {$fullName}!</p>"></pre></td>
+                </tr>
+                <tr>
+                    <td>
+<pre>&lt;button 
+     fin-let-count="\{0}" 
+     fin-onclick="\{this.set('count', $count+1)}"
+    &gt;
+    count: \{$count\}
+&lt;/button&gt;</pre>
+                    </td>
+                    <td>
+                        <button  fin-let-count="{0}" fin-onclick="{this.set('count', $count+1)}">count: {$count}</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+<pre>&lt;p fin-let-fruits="\{['Apple', 'Mango']}"&gt;
+    \{$fruits[0]+' and '+$fruits[1]\}
+&lt;/p&gt;</pre>
+                    </td>
+                    <td>
+                        <p fin-let-fruits="{['Apple', 'Mango']}">{$fruits[0]+' and '+$fruits[1]}</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+<pre>&lt;div fin-let-async-frag="\{fetchText('frag.html', 2000)}" 
+     fin-html="\{$frag || '&lt;p&gt;loading...&lt;/p&gt;'}"
+    &gt;&lt;/div&gt;</pre>
+                    </td>
+                    <td>
+                        <div fin-let-async-frag="{fetchText('frag.html', 2000)}" 
+                            fin-html="{$frag || '<p>loading...</p>'}"
+                            ></div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+<pre>&lt;div fin-html-async="{fetchText('frag.html', 1500)}"&gt;
+     &lt;p&gt;loading...&lt;/p&gt;
+&lt;/div&gt;</pre>
+                    </td>
+                    <td>
+                        <div fin-html-async="{fetchText('frag.html', 1500)}">
+                            <p>loading...</p>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+<pre>&lt;div
+     fin-let-tag="input"
+     fin-let-type="text"
+     fin-ondblclick="{context.set('type', 
+        $type === 'text' ? 'password' : 'text')}"
+    &gt;
+    &lt;div 
+         fin-html="&lt;\{$tag\} 
+             fin-type='{$type}' 
+             value='double click me'
+            /&gt;"
+        &gt;
+    &lt;/div&gt;
+&lt;/div&gt;</pre>
+                    </td>
+                    <td>
+                        <div 
+                             fin-let-tag="input"
+                             fin-let-type="text"
+                             fin-ondblclick="{context.set('type', $type === 'text' ? 'password' : 'text')}"
+                            >
+                            <div 
+                                 fin-html="<{$tag} 
+                                     fin-type='{$type}' 
+                                     value='double click me' 
+                                    />"
+                                >
+                            </div>
+                        </div>
+                    </td>
+                </tr>
             </tbody>
         </table>
     </div>

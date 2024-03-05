@@ -49,6 +49,9 @@
  *      initially the innerHTML will be the given innerHTML.
  *   - fin-html="{...}"
  *      processes the code block and sets the innerHTML with the value of the output.
+ *   - fin-if="{...}"
+ *      processes the code block and sets the innerHTML with the given innerHTML if the output 
+ *      evaluates to a truthy value, or else sets the innerHTML to empty string.
  *   - fin-<attribute>="{...}" 
  *      processes the code block and sets the attribute <attribute> with the value of the output.
  * 
@@ -62,6 +65,56 @@
  * - variable identifier characters include [a-zA-Z0-9_-] and cannot begin with a digit.
  *   And variable identifiers including -[a-zA-Z] will be converted to uppercase without the dash.
  *   like `an-apple` -> `anApple` and `-an-apple` -> `AnApple`
+ * 
+ * CLASSES
+ * 
+ *  Fin
+ *  fin.Variable
+ *  fin.Context
+ * 
+ * VARIABLES AND FUNCTIONS
+ * 
+ *  Fin scope:
+ *    variables:
+ *      fin
+ *      contexts
+ *      zeroWidthWhiteSpace
+ *    functions:
+ *      [this] update
+ *      getContext
+ *      formatJson
+ *      delay
+ *      sleep
+ *      fetchText
+ *      fetchJson
+ * 
+ *  Fin.Context scope:
+ *    variables:
+ *      context
+ *      element
+ *      clone
+ *      parentContext
+ *      variables
+ *      referenceList
+ *      letAsyncWaitingList
+ *    functions:
+ *      varName
+ *      setVar
+ *      setNew
+ *      setOrNew
+ *      set
+ *      setVarAsync
+ *      setNewAsync
+ *      setOrNewAsync
+ *      setAsync
+ *      get
+ *      has
+ *      updateReferencingElements
+ *      removeElement
+ *      addElement
+ *      evaluateInContext
+ *      parseVariables
+ *      processCodeBlocks
  * 
  * EXAMPLE:
  *  <head> 
@@ -106,12 +159,14 @@ const Fin = function() {
                 ' }';
         };
     };
+    this.Variable = Variable;
     const Context = function(element, parentContext) {
         const context = this;
         this.element = element;
         this.parentContext = parentContext;
         this.variables = new Map();
         this.referenceList = new Map();
+        this.letAsyncWaitingList = new Map();
         // clone elements
         this.clone = element.cloneNode();
         this.clone.innerHTML = element.innerHTML;
@@ -341,6 +396,7 @@ const Fin = function() {
                             varValueCode = 'context.get(\''+varName+'\',element,'+bUpdateAttributes+').value'+varAccess;
                         } catch(error) {
                             varValueCode = '{ERROR@{'+matchVP+'}:'+error+'}';
+                            console.error(varValueCode, matchVP);
                         }
                         return varValueCode;
                     } else if(returnUndefinedIfNotDefined) {
@@ -398,7 +454,10 @@ const Fin = function() {
             return output;
         }
     };
+    this.Context = Context;
     this.contexts = new Map();
+    const zeroWidthWhiteSpace = "\u200B";
+    this.zeroWidthWhiteSpace = zeroWidthWhiteSpace;
     this.update = function(element, reprocessAttributes, parentContext) {
         console.assert(element !== undefined && element instanceof HTMLElement, 
             '<element> must be instance of HTMLElement',
@@ -421,6 +480,7 @@ const Fin = function() {
             const finOnPrefix = 'on';
             const finHtmlAsyncPrefix = 'html-async';
             const finHtmlPrefix = 'html';
+            const finIfPrefix = 'if';
             // update attributes
             for(let attribute of clone.attributes) {
                 if(attribute.name.indexOf(finPrefix) === 0) {
@@ -433,25 +493,31 @@ const Fin = function() {
                         if(finLetAsyncVarName.length > 0 && finLetAsyncVarName.search(/^[a-zA-Z_\-][\w_\-]*$/gm) === 0) {
                             if(!context.letAsyncWaiting) {
                                 context.letAsyncWaiting = true;
-                                const variable = context.setOrNew(finLetAsyncVarName, undefined);
-                                const varValueStr = attribute.value.charAt(0) === '{' 
-                                    ? attribute.value.substring(1, attribute.value.length-1)
-                                    : '"'+attribute.value+'"';
-                                (async function() {
-                                    try {
-                                        const local   = { promise: undefined };
-                                        const varCode = '{ local.promise = '+varValueStr+'}';
-                                        context.processCodeBlocks(varCode, element, 
-                                            { wholeBlock: true, updateAttributes: true }, 
-                                            local);
-                                        variable.value = await local.promise;
-                                        context.setVar(variable);
-                                        context.letAsyncWaiting = false;
-                                    } catch(error) {
-                                        console.error('Error when setting variable: '+attribute.name+'='+varValueCode+'\n', 
+                                const locked = context.letAsyncWaitingList.get(finLetAsyncVarName);
+                                if(!locked) {
+                                    context.letAsyncWaitingList.set(finLetAsyncVarName, true);
+                                    const variable = context.setOrNew(finLetAsyncVarName, undefined);
+                                    const varValueStr = attribute.value.charAt(0) === '{' 
+                                        ? attribute.value.substring(1, attribute.value.length-1)
+                                        : '"'+attribute.value+'"';
+                                    (async function() {
+                                        try {
+                                            const local   = { promise: undefined };
+                                            const varCode = '{ local.promise = '+varValueStr+'}';
+                                            context.processCodeBlocks(varCode, element, 
+                                                { wholeBlock: true, updateAttributes: true }, 
+                                                local);
+                                            variable.value = await local.promise;
+                                            context.setVar(variable);
+                                        } catch(error) {
+                                            console.error('Error when setting variable: '+attribute.name+'='+varValueCode+'\n', 
                                             error, clone);
-                                    }
-                                })();
+                                        } finally {
+                                            context.letAsyncWaitingList.set(finLetAsyncVarName, false);
+                                        }
+                                    })();
+                                }
+                                context.letAsyncWaiting = false;
                             }
                         } else {
                             console.error('Error invalid variable identifier: '+finLetAsyncVarName, 
@@ -504,7 +570,6 @@ const Fin = function() {
                             context.htmlAsyncProcessing = true;
                             (async function() {
                                 const htmlCode = '{ local.promise = '+attribute.value.substring(1,attribute.value.length-1)+'}';
-                                // const htmlCode = attribute.value;
                                 const local   = { promise: undefined };
                                 context.processCodeBlocks(htmlCode, element, 
                                     { wholeBlock: false, updateAttributes: true },
@@ -522,11 +587,31 @@ const Fin = function() {
                         if(!context.htmlProcessing) {
                             context.htmlProcessing = true;
                             const htmlCode = attribute.value;
-                            let output   = context.processCodeBlocks(htmlCode, element, 
+                            const output = context.processCodeBlocks(htmlCode, element, 
                                 { wholeBlock: false, updateAttributes: true }); 
-                            output = context.processCodeBlocks(output, element,
-                                { wholeBlock: false, updateAttributes: false });
+                            context.clone.innerHTML = output;
                             element.innerHTML = output;
+                            fin.update(element, false, context.parentContext);
+                            context.htmlProcessing = false;
+                        }
+                    } 
+                    // fin-if
+                    else if(finCommand === finIfPrefix) {
+                        if(!context.htmlProcessing) {
+                            context.htmlProcessing = true;
+                            const conditionCode = '{ local.condition = '+attribute.value.substring(1,attribute.value.length-1)+'}';
+                            const local   = { condition: undefined };
+                            context.processCodeBlocks(conditionCode, element, 
+                                { wholeBlock: true, updateAttributes: true },
+                                local); 
+                            const condition = local.condition;
+                            if(condition) {
+                                const output = context.clone.innerHTML;
+                                element.innerHTML = output;
+                                fin.update(element, false, context.parentContext);
+                            } else {
+                                element.innerHTML = '';
+                            }
                             context.htmlProcessing = false;
                         }
                     } 
@@ -560,8 +645,10 @@ const Fin = function() {
                         wholeBlock: false,
                         reprocessAttributes: false
                     });
-                    mainChild.textContent = output;
-                } else if(child instanceof HTMLElement) {
+                    if(mainChild instanceof Node)
+                        mainChild.textContent = output;
+                } else if(child instanceof HTMLElement 
+                        && mainChild instanceof HTMLElement) {
                     fin.update(mainChild, reprocessAttributes, context);
                 }
             }
@@ -623,11 +710,9 @@ const Fin = function() {
                     jsonStr += newLineElems ? newLine : '';
                     for(let i = 0; i < entries.length; i++) {
                         const value = entries[i]; 
-                        if(typeof value === 'function')
-                            continue;
-                        jsonStr += i > 0 ? ', ' : '';
                         jsonStr += newLineElems ? indent+tab : '';
                         jsonStr += formatJsonValue(value);
+                        jsonStr += i < entries.length-1 ? ', ' : '';
                         jsonStr += newLineElems ? newLine : '';
                     }
                     jsonStr += newLineElems ? indent : '';
@@ -642,13 +727,11 @@ const Fin = function() {
                         const entry = entries[i];
                         const key   = entry[0];
                         const value = entry[1];
-                        if(typeof value === 'function')
-                            continue;
-                        jsonStr += i > 0 ? ', ' : '';
                         jsonStr += indent+tab;
                         jsonStr += doNotQuoteKeys ? key : '"'+key+'"';
                         jsonStr += ': ';
                         jsonStr += formatJsonValue(value);
+                        jsonStr += i < entries.length-1 ? ', ' : '';
                         jsonStr += newLine;
                     }
                     jsonStr += indent;
@@ -701,8 +784,6 @@ const Fin = function() {
             });
     };
     this.fetchJson = fetchJson;
-    const zeroWidthWhiteSpace = "\u200B";
-    this.zeroWidthWhiteSpace = zeroWidthWhiteSpace;
 };
 
 const fin = new Fin();

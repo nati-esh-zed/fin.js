@@ -36,24 +36,26 @@
  * 
  *   ATTRIBUTES:
  * 
- *   - fin-let-async-<var-name>="[string]"|"{...}"
- *      processes the code block and asynchronously sets the variable <var-name> with the value of the output.
+ *     fin-let-async-<var-name>="[string]"|"{...}"
+ *        processes the code block and asynchronously sets the variable <var-name> with the value of the output.
  *      initially the value will be undefined.
- *   - fin-let-<var-name>="[string]"|"{...}"
- *      processes the code block and sets the variable <var-name> with the value of the output.
- *   - fin-on<event>="{...}"
- *      processes the code block when the event is triggered.
- *      A `local` object variable is provided with the event property set. 
- *   - fin-html-async="{...}"
- *      processes the code block and asynchronously sets the innerHTML with the value of the output.
- *      initially the innerHTML will be the given innerHTML.
- *   - fin-html="{...}"
- *      processes the code block and sets the innerHTML with the value of the output.
- *   - fin-if="{...}"
- *      processes the code block and sets the innerHTML with the given innerHTML if the output 
- *      evaluates to a truthy value, or else sets the innerHTML to empty string.
- *   - fin-<attribute>="{...}" 
- *      processes the code block and sets the attribute <attribute> with the value of the output.
+ *     fin-let-<var-name>="[string]"|"{...}"
+ *        processes the code block and sets the variable <var-name> with the value of the output.
+ *     fin-on<event>="{...}"
+ *        processes the code block when the event is triggered.
+ *        A `local` object variable is provided with the event property set. 
+ *     fin-html-async="{...}"
+ *        processes the code block and asynchronously sets the innerHTML with the value of the output.
+ *        initially the innerHTML will be the given innerHTML.
+ *     fin-html="{...}"
+ *        processes the code block and sets the innerHTML with the value of the output.
+ *     fin-if="{...}"
+ *        processes the code block and sets the innerHTML with the given innerHTML if the output 
+ *        evaluates to a truthy value, or else sets the innerHTML to empty string.
+ *     fin-for="{...; ...; ...}"
+ *        processes the iteration code block along with the innerHTML. 
+ *     fin-<attribute>="{...}" 
+ *        processes the code block and sets the attribute <attribute> with the value of the output.
  * 
  * NOTES:
  * 
@@ -71,6 +73,7 @@
  *  Fin
  *  fin.Variable
  *  fin.Context
+ *  fin.JsonObject
  * 
  * VARIABLES AND FUNCTIONS
  * 
@@ -82,11 +85,12 @@
  *    functions:
  *      [this] update
  *      getContext
- *      formatJson
- *      delay
- *      sleep
+ *      jsonToString
+ *      jsonify
  *      fetchText
  *      fetchJson
+ *      delay
+ *      sleep
  * 
  *  Fin.Context scope:
  *    variables:
@@ -176,9 +180,10 @@ const Fin = function() {
             );
         };
         // set Variable object
-        this.setVar = function(variable) {
+        this.setVar = function(variable, doNotUpdateReferences) {
             context.variables.set(variable.name, variable);
-            context.updateReferencingElements(variable.name);
+            if(!doNotUpdateReferences)
+                context.updateReferencingElements(variable.name);
             return variable;
         };
         // set new variable
@@ -188,11 +193,12 @@ const Fin = function() {
             return variable;
         };
         // set existing or new variable
-        this.setOrNew = function(name, value) {
+        this.setOrNew = function(name, value, doNotUpdateReferences) {
             if(context.variables.has(name)) {
                 const variable = context.variables.get(name);
                 variable.value = value;
-                context.updateReferencingElements(name);
+                if(!doNotUpdateReferences)
+                    context.updateReferencingElements(name);
                 return variable;
             } else {
                 const variable = new Variable(name, value);
@@ -201,7 +207,7 @@ const Fin = function() {
             }
         };
         // set variable only if declared
-        this.set = function(name, value) {
+        this.set = function(name, value, doNotUpdateReferences) {
             name = context.varName(name);
             console.assert(context.has(name), 
                 'variable \''+name+'\' must be declared before setting!',
@@ -210,14 +216,15 @@ const Fin = function() {
                 return undefined;
             const variable = context.get(name);
             variable.value = value;
-            context.updateReferencingElements(name);
+            if(!doNotUpdateReferences)
+                context.updateReferencingElements(name);
             return variable;
         };
         // set Variable object from value promise
-        this.setVarAsync = async function(variable, initValue) {
+        this.setVarAsync = async function(variable, initValue, doNotUpdateReferences) {
             variable.value = initValue;
             variable.value = await variable.value;
-            context.setVar(variable);
+            context.setVar(variable, doNotUpdateReferences);
         }
         // set new variable from promise
         this.setNewAsync = async function(name, promise, initValue) {
@@ -226,16 +233,16 @@ const Fin = function() {
             context.setVar(variable);
         }
         // set existing or new variable from promise
-        this.setOrNewAsync = async function(name, promise, initValue) {
-            const variable = context.setOrNew(name, initValue);
+        this.setOrNewAsync = async function(name, promise, initValue, doNotUpdateReferences) {
+            const variable = context.setOrNew(name, initValue, doNotUpdateReferences);
             variable.value = await promise;
             context.setVar(variable);
         }
         // set variable from promise
-        this.setAsync = async function(name, promise, initValue) {
-            const variable = context.set(name, initValue);
+        this.setAsync = async function(name, promise, initValue, doNotUpdateReferences) {
+            const variable = context.set(name, initValue, doNotUpdateReferences);
             variable.value = await promise;
-            context.setVar(variable);
+            context.setVar(variable, doNotUpdateReferences);
         };
         // get variable
         this.get = function(name, element, updateAttributes) {
@@ -281,7 +288,6 @@ const Fin = function() {
                     fin.contexts.delete(elementContext);
                 }
                 element.remove();
-
             }
         };
         // safely add element
@@ -471,8 +477,9 @@ const Fin = function() {
             // create a new Context and add it to contexts map
             fin.contexts.set(element, new Context(element, parentContext));
         }
-        const context = fin.contexts.get(element);
-        const clone   = context.clone;
+        const context    = fin.contexts.get(element);
+        const clone      = context.clone;
+        let   escapeHtml = false;
         if(!initialized || reprocessAttributes) {
             const finPrefix = 'fin-';
             const finLetPrefix = 'let-';
@@ -481,6 +488,7 @@ const Fin = function() {
             const finHtmlAsyncPrefix = 'html-async';
             const finHtmlPrefix = 'html';
             const finIfPrefix = 'if';
+            const finForPrefix = 'for';
             // update attributes
             for(let attribute of clone.attributes) {
                 if(attribute.name.indexOf(finPrefix) === 0) {
@@ -510,7 +518,7 @@ const Fin = function() {
                                             variable.value = await local.promise;
                                             context.setVar(variable);
                                         } catch(error) {
-                                            console.error('Error when setting variable: '+attribute.name+'='+varValueCode+'\n', 
+                                            console.error('Error when setting variable: '+attribute.name+'='+attribute.value+'\n', 
                                             error, clone);
                                         } finally {
                                             context.letAsyncWaitingList.set(finLetAsyncVarName, false);
@@ -537,9 +545,9 @@ const Fin = function() {
                                 const local   = { value: undefined };
                                 const varCode = '{ local.value = '+varValueStr+'}';
                                 context.processCodeBlocks(varCode, element, { wholeBlock: true, updateAttributes: true }, local);
-                                context.setOrNew(finLetVarName, local.value);
+                                context.setOrNew(finLetVarName, local.value, true);
                             } catch(error) {
-                                console.error('Error when setting variable: '+attribute.name+'='+varValueCode+'\n', error, clone);
+                                console.error('Error when setting variable: '+attribute.name+'='+attribute.value+'\n', error, clone);
                             }
                         } else {
                             console.error('Error invalid variable identifier: '+finLetVarName, clone);
@@ -586,6 +594,7 @@ const Fin = function() {
                     else if(finCommand === finHtmlPrefix) {
                         if(!context.htmlProcessing) {
                             context.htmlProcessing = true;
+                            escapeHtml = true;
                             const htmlCode = attribute.value;
                             const output = context.processCodeBlocks(htmlCode, element, 
                                 { wholeBlock: false, updateAttributes: true }); 
@@ -599,6 +608,7 @@ const Fin = function() {
                     else if(finCommand === finIfPrefix) {
                         if(!context.htmlProcessing) {
                             context.htmlProcessing = true;
+                            escapeHtml = true;
                             const conditionCode = '{ local.condition = '+attribute.value.substring(1,attribute.value.length-1)+'}';
                             const local   = { condition: undefined };
                             context.processCodeBlocks(conditionCode, element, 
@@ -612,6 +622,30 @@ const Fin = function() {
                             } else {
                                 element.innerHTML = '';
                             }
+                            context.htmlProcessing = false;
+                        }
+                    } 
+                    // fin-for
+                    else if(finCommand === finForPrefix) {
+                        if(!context.htmlProcessing) {
+                            context.htmlProcessing = true;
+                            escapeHtml = true;
+                            element.innerHTML = '';
+                            const local = {
+                                __innerHTML__: context.clone.innerHTML,
+                                __parent__: element,
+                                __parentContext__: context,
+                                tag: 'div',
+                            };
+                            const forLoopCode = '{ for('+attribute.value.substring(1,attribute.value.length-1)+') \{ '+
+                            'const element = document.createElement(local.tag); '+
+                            'const output = context.processCodeBlocks(local.__innerHTML__, element, \{ wholeBlock: true, updateAttributes: true \}, local); '+
+                            'element.innerHTML = output; '+
+                            'local.__parent__.appendChild(element); '+
+                            '\} }';
+                            context.processCodeBlocks(forLoopCode, element, 
+                                { wholeBlock: true, updateAttributes: true },
+                                local); 
                             context.htmlProcessing = false;
                         }
                     } 
@@ -634,7 +668,7 @@ const Fin = function() {
             }
         }
         // update child nodes
-        if(!context.htmlProcessing) {
+        if(!escapeHtml && !context.htmlProcessing) {
             context.htmlProcessing = true;
             let childIndex = 0;
             for(let child of clone.childNodes) {
@@ -660,7 +694,7 @@ const Fin = function() {
         return fin.contexts.get(element);
     };
     this.getContext = getContext;
-    const formatJson = function(json, doNotQuoteKeys, indent, tab, newLine) {
+    const jsonToString = function(json, doNotQuoteKeys, indent, tab, newLine) {
         if(json === undefined)
             return undefined;
         let  jsonStr = 'null';
@@ -668,7 +702,7 @@ const Fin = function() {
             indent  = indent  !== undefined ? indent : '';
             tab     = tab     !== undefined ? tab : "    ";
             newLine = newLine !== undefined ? newLine : "\n";
-            const formatJsonValue = function(value) {
+            const jsonToStringValue = function(value) {
                 if(value === undefined || value === null) {
                     return 'null';
                 } else if(typeof value === 'boolean' || value instanceof Boolean) {
@@ -678,9 +712,9 @@ const Fin = function() {
                 } else if(value instanceof String) {
                     return '"'+value+'"';
                 } else if(value instanceof Array) {
-                    return formatJson(value, doNotQuoteKeys, indent+tab, tab, newLine);
+                    return jsonToString(value, doNotQuoteKeys, indent+tab, tab, newLine);
                 } else if(value instanceof Object) {
-                    return formatJson(value, doNotQuoteKeys, indent+tab, tab, newLine);
+                    return jsonToString(value, doNotQuoteKeys, indent+tab, tab, newLine);
                 } else {
                     return '"'+value+'"';
                 }
@@ -711,7 +745,7 @@ const Fin = function() {
                     for(let i = 0; i < entries.length; i++) {
                         const value = entries[i]; 
                         jsonStr += newLineElems ? indent+tab : '';
-                        jsonStr += formatJsonValue(value);
+                        jsonStr += jsonToStringValue(value);
                         jsonStr += i < entries.length-1 ? ', ' : '';
                         jsonStr += newLineElems ? newLine : '';
                     }
@@ -730,7 +764,7 @@ const Fin = function() {
                         jsonStr += indent+tab;
                         jsonStr += doNotQuoteKeys ? key : '"'+key+'"';
                         jsonStr += ': ';
-                        jsonStr += formatJsonValue(value);
+                        jsonStr += jsonToStringValue(value);
                         jsonStr += i < entries.length-1 ? ', ' : '';
                         jsonStr += newLine;
                     }
@@ -738,12 +772,87 @@ const Fin = function() {
                 }
                 jsonStr += '}';
             } else {
-                jsonStr = formatJsonValue(json);
+                jsonStr = jsonToStringValue(json);
             }
         }
         return jsonStr;
     };
-    this.formatJson = formatJson;
+    this.jsonToString = jsonToString;
+    const JsonObject = function(object) {
+        for(let entry of Object.entries(object)) {
+            if(entry[1] === undefined || entry[1] === null)
+                this[entry[0]] = null;
+            else if(typeof entry[1] === 'string')
+                this[entry[0]] = entry[1];
+            else if(typeof entry[1] === 'number')
+                this[entry[0]] = entry[1];
+            else if(typeof entry[1] === 'boolean')
+                this[entry[0]] = entry[1];
+            else if(entry[1] instanceof Array)
+                this[entry[0]] = entry[1];
+            else if(entry[1] instanceof Object)
+                this[entry[0]] = new JsonObject(entry[1]);
+            else
+                this[entry[0]] = entry[1];
+        }
+        return this;
+    };
+    JsonObject.prototype.toString = function() {
+        return jsonToString(this);
+    };
+    this.JsonObject = JsonObject;
+    const jsonify = function(object) {
+        return new JsonObject(object);
+    };
+    this.jsonify = jsonify;
+    const fetchText = function(url, ms) {
+        if(ms === undefined)
+            return new Promise(function(resolve) {
+                resolve(fetch(url)
+                    .then(function(resp) {
+                        return resp.text()
+                    })
+                );
+            });
+        else
+            return new Promise(function(resolve) {
+                setTimeout(function () {
+                    resolve(fetch(url)
+                        .then(function(resp) {
+                            return resp.text()
+                        })
+                    );
+                }, ms);
+            });
+    };
+    this.fetchText = fetchText;
+    const fetchJson = function(url, ms) {
+        if(ms === undefined)
+            return new Promise(function(resolve) {
+                resolve(fetch(url)
+                    .then(function(resp) {
+                        return resp.json() 
+                    })
+                    .then(function(jsonObject) {
+                        return jsonify(jsonObject);
+                    })
+                );
+            });
+        else
+            return new Promise(function(resolve) {
+                setTimeout(function () {
+                    resolve(fetch(url)
+                        .then(function(resp) {
+                            return resp.json() 
+                        })
+                        .then(function(jsonObject) {
+                            return jsonify(jsonObject);
+                        })
+                    );
+                }, ms);
+            });
+    };
+    this.fetchJson = fetchJson;
     const delay = function(ms, then) {
         return new Promise(function(resolve) {
             setTimeout(function() {
@@ -758,32 +867,6 @@ const Fin = function() {
         });
     };
     this.sleep = sleep;
-    const fetchText = function(url, ms) {
-        if(ms === undefined)
-            return new Promise(function(resolve) {
-                resolve(fetch(url).then(resp => resp.text()));
-            });
-        else
-            return new Promise(function(resolve) {
-                setTimeout(function () {
-                    resolve(fetch(url).then(resp => resp.text()));
-                }, ms);
-            });
-    };
-    this.fetchText = fetchText;
-    const fetchJson = function(url, ms) {
-        if(ms === undefined)
-            return new Promise(function(resolve) {
-                resolve(fetch(url).then(resp => resp.json()));
-            });
-        else
-            return new Promise(function(resolve) {
-                setTimeout(function () {
-                    resolve(fetch(url).then(resp => resp.text()));
-                }, ms);
-            });
-    };
-    this.fetchJson = fetchJson;
 };
 
 const fin = new Fin();

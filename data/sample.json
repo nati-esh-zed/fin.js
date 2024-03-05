@@ -1,0 +1,9 @@
+
+{
+    "fullName": "Adam Tsegaye",
+    "email": "adam123@gmail.com",
+    "age": 28,
+    "height": 1.82,
+    "numbers": [ 1,2,3 ],
+    "null": null
+}

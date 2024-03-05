@@ -6,15 +6,34 @@
     <title>fin.js</title>
     <script src="js/fin.1.0.0.js"></script>
     <style>
+        body {
+            background-color: #222;
+            color:orange;
+        }
+        
         .table {
             border-collapse: collapse;
+            width: 100%;
+            border: 1px solid #777;
         }
         .table th, 
         .table td {
             padding: .25rem;
-            border: 1px solid #777;
-            font-size: .75rem;
+            border: 1px solid #777c;
+            /* font-size: .75rem; */
+        }
+        .table * {
+            font-size: .9rem;
+            font-weight: bold;
             font-family: 'Courier New', Courier, monospace;
+        }
+        .table td {
+            max-width: 60vw;
+            overflow-x: auto;
+        }
+        .table td > * {
+            text-wrap: wrap;
+            word-wrap: break-word;
         }
     </style>
 </head>
@@ -23,7 +42,7 @@
         fin-let-str=""
         fin-let-first-name="Adam"
         fin-let-last-name="Tsegaye"
-        fin-let-user="{{firstName: $first-name, lastName: $last-name}}"
+        fin-let-user="{jsonify({firstName: $first-name, lastName: $last-name})}"
         fin-let-full-name="{$firstName+' '+$lastName}"
         fin-let--my-var="My Value"
         >
@@ -32,125 +51,89 @@
                 <tr><th>CODE</th><th>OUTPUT</th></tr>
             </thead>
             <tbody>
-                <tr><td>\{$firstName}</td><td>{$firstName}</td></tr>
-                <tr><td>\{$last-name}</td><td>{$last-name}</td></tr>
-                <tr><td>\{$fullName}</td><td>{$fullName}</td></tr>
-                <tr><td>\{$user.firstName}</td><td>{$user.firstName}</td></tr>
-                <tr><td>\{$user['lastName']}</td><td>{$user['lastName']}</td></tr>
-                <tr><td>\{$-my-var}</td><td>{$-my-var}</td></tr>
-                <tr><td>\{$MyVar}</td><td>{$MyVar}</td></tr>
-                <tr><td>\{$my-var}</td><td>{$my-var}</td></tr>
-                <tr><td>\{$myVar}</td><td>{$myVar}</td></tr>
-                <tr><td>\{$user.age = 26}</td><td>{$user.age = 26}</td></tr>
-                <tr><td>\{$user.age++}</td><td>{$user.age++}</td></tr>
-                <tr><td>\{$user.age}</td><td>{$user.age}</td></tr>
-                <tr><td>\{}</td><td>{}</td></tr>
-                <tr><td>[&lt;div&gt;\{''}&lt;/div&gt;]</td><td>[<div>{''}</div>]</td></tr>
-                <tr><td>[&lt;div&gt;\{zeroWidthWhiteSpace}&lt;/div&gt;]</td><td>[<div>{zeroWidthWhiteSpace}</div>]</td></tr>
-                <tr><td>\{console.log(formatJson($user))}</td><td>{console.log(formatJson($user))}</td></tr>
-                <tr><td>\{console.log(formatJson($user)); ''}</td><td>{console.log(formatJson($user)); ''}</td></tr>
-                <tr><td>\{new Date().getUTCFullYear()}</td><td>{new Date().getUTCFullYear()}</td></tr>
-                <tr><td>{'\\'}\{'escaped'}</td><td>\{'escaped'}</td></tr>
-                <tr><td>{'\\\\'}\{'not escaped'}</td><td>\\{'not escaped'}</td></tr>
-                <tr><td>*\{'commented out'}</td><td>*{'commented out'}</td></tr>
-                <tr><td>\*\{'not commented out'}</td><td>\*{'not commented out'}</td></tr>
-                <tr><td>\{'hello'} "w{elc}ome"</td><td>{'hello'} "w{elc}ome"</td></tr>
-                <tr>
-                    <td>&lt;pre fin-html="&lt;p&gt;hello \{$fullName\}!&lt;/p&gt;"&gt;&lt;/pre&gt;</td>
-                    <td><pre fin-html="<p>hello {$fullName}!</p>"></pre></td>
-                </tr>
-                <tr>
-                    <td>
-<pre>&lt;button 
-     fin-let-count="\{0}" 
-     fin-onclick="\{this.set('count', $count+1)}"
-    &gt;
-    count: \{$count\}
-&lt;/button&gt;</pre>
-                    </td>
-                    <td>
-                        <button  fin-let-count="{0}" fin-onclick="{this.set('count', $count+1)}">count: {$count}</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-<pre>&lt;p fin-let-fruits="\{['Apple', 'Mango']}"&gt;
-    \{$fruits[0]+' and '+$fruits[1]\}
-&lt;/p&gt;</pre>
-                    </td>
-                    <td>
-                        <p fin-let-fruits="{['Apple', 'Mango']}">{$fruits[0]+' and '+$fruits[1]}</p>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-<pre>&lt;div fin-let-async-frag="\{fetchText('frag.html', 2000)}" 
-     fin-html="\{$frag || '&lt;p&gt;loading...&lt;/p&gt;'}"
-    &gt;&lt;/div&gt;</pre>
-                    </td>
-                    <td>
-                        <div fin-let-async-frag="{fetchText('frag.html', 2000)}" 
-                            fin-html="{$frag || '<p>loading...</p>'}"
-                            ></div>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-<pre>&lt;div fin-html-async="{fetchText('frag.html', 1500)}"&gt;
-     &lt;p&gt;loading...&lt;/p&gt;
-&lt;/div&gt;</pre>
-                    </td>
-                    <td>
-                        <div fin-html-async="{fetchText('frag.html', 1500)}">
-                            <p>loading...</p>
-                        </div>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-<pre>&lt;div
-     fin-let-tag="input"
-     fin-let-type="text"
-     fin-ondblclick="{context.set('type', 
-        $type === 'text' ? 'password' : 'text')}"
-    &gt;
-    &lt;div 
-         fin-html="&lt;\{$tag\} 
-             fin-type='{$type}' 
-             value='double click me'
-            /&gt;"
-        &gt;
-    &lt;/div&gt;
-&lt;/div&gt;</pre>
-                    </td>
-                    <td>
-                        <div 
-                             fin-let-tag="input"
-                             fin-let-type="text"
-                             fin-ondblclick="{context.set('type', $type === 'text' ? 'password' : 'text')}"
-                            >
-                            <div 
-                                 fin-html="<{$tag} 
-                                     fin-type='{$type}' 
-                                     value='double click me' 
-                                    />"
-                                >
-                            </div>
-                        </div>
-                    </td>
-                </tr>
-                <tr>
-                    <td fin-raw-html>
-                        <div fin-let-async-sample="{fetchJson('data/sample.json')}">
-                            <pre fin-html="{$sample}"></pre>
-                        </div>
-                    </td>
-                    <td>
-                        <div fin-let-async-sample="{fetchJson('data/sample.json')}">
-                            <pre fin-html="{$sample}"></pre>
-                        </div>
-                    </td>
-                </tr>
+<tr><td>\{$firstName}</td><td>{$firstName}</td></tr>
+<tr><td>\{$last-name}</td><td>{$last-name}</td></tr>
+<tr><td>\{$fullName}</td><td>{$fullName}</td></tr>
+<tr><td>\{$user.firstName}</td><td>{$user.firstName}</td></tr>
+<tr><td>\{$user['lastName']}</td><td>{$user['lastName']}</td></tr>
+<tr><td>\{$-my-var}</td><td>{$-my-var}</td></tr>
+<tr><td>\{$MyVar}</td><td>{$MyVar}</td></tr>
+<tr><td>\{$my-var}</td><td>{$my-var}</td></tr>
+<tr><td>\{$myVar}</td><td>{$myVar}</td></tr>
+<tr><td>\{$user.age = 26}</td><td>{$user.age = 26}</td></tr>
+<tr><td>\{$user.age++}</td><td>{$user.age++}</td></tr>
+<tr><td>\{$user.age}</td><td>{$user.age}</td></tr>
+<tr><td>\{}</td><td>{}</td></tr>
+<tr><td>[&lt;div&gt;\{''}&lt;/div&gt;]</td><td>[<div>{''}</div>]</td></tr>
+<tr><td>[&lt;div&gt;\{zeroWidthWhiteSpace}&lt;/div&gt;]</td><td>[<div>{zeroWidthWhiteSpace}</div>]</td></tr>
+<tr><td>\{console.log($user)}</td><td>{console.log($user.toString())}</td></tr>
+<tr><td>\{console.log($user); ''}</td><td>{console.log($user.toString()); ''}</td></tr>
+<tr><td>\{new Date().getUTCFullYear()}</td><td>{new Date().getUTCFullYear()}</td></tr>
+<tr><td>{'\\'}\{'escaped'}</td><td>\{'escaped'}</td></tr>
+<tr><td>{'\\\\'}\{'not escaped'}</td><td>\\{'not escaped'}</td></tr>
+<tr><td>*\{'commented out'}</td><td>*{'commented out'}</td></tr>
+<tr><td>\*\{'not commented out'}</td><td>\*{'not commented out'}</td></tr>
+<tr><td>\{'hello'} "w{elc}ome"</td><td>{'hello'} "w{elc}ome"</td></tr>
+<tr fin-for="{local.i = 0; local.i < 2; local.i++}">
+    <td>
+<pre fin-escape-html="{local.i === 0}"><div fin-html="<p>hello {$fullName}!</p>"></div></pre>
+    </td>
+</tr>
+
+<tr fin-for="{local.i = 0; local.i < 2; local.i++}">
+    <td>
+<pre fin-escape-html="{local.i === 0}"><button  fin-let-count="{0}" fin-onclick="{this.set('count', $count+1)}"><p>count: {$count}</p></button></pre>
+    </td>
+</tr>
+
+<tr fin-for="{local.i = 0; local.i < 2; local.i++}">
+    <td>
+<pre fin-escape-html="{local.i === 0}"><p fin-let-fruits="{['Apple', 'Mango']}">{$fruits[0]+' and '+$fruits[1]}</p></pre>
+    </td>
+</tr>
+
+<tr fin-for="{local.i = 0; local.i < 2; local.i++}">
+    <td><div fin-let-async-frag="{fetchText('frag.html', 2000)}" 
+        fin-html="{$frag || '<p>loading...</p>'}"
+    ></div></pre>
+    </td>
+</tr>
+
+<tr fin-for="{local.i = 0; local.i < 2; local.i++}">
+    <td>
+<pre fin-escape-html="{local.i === 0}"><div 
+        fin-let-tag="input"
+        fin-let-type="text"
+        fin-ondblclick="{this.set('type', $type === 'text' ? 'password' : 'text')}"
+    >
+    <div 
+        fin-html="<{$tag} 
+            fin-type='{$type}' 
+            value='double click me' 
+         />"
+        >
+    </div>
+</div></pre>
+    </td>
+</tr>
+
+<tr fin-for="{local.i = 0; local.i < 2; local.i++}">
+    <td fin-escape-html="{local.i === 0}">
+<pre fin-let-async-sample="{fetchJson('data/sample.json')}">{$sample || 'loading...'}</pre>
+    </td>
+</tr>
+
+<tr fin-for="{local.i = 0; local.i < 2; local.i++}">
+    <td fin-escape-html="{local.i === 0}">
+<pre fin-escape-html><p fin-escape>Hello {$full-name}</p></pre>
+    </td>
+</tr>
+
+<tr fin-for="{local.i = 0; local.i < 2; local.i++}">
+    <td fin-escape-html="{local.i === 0}">
+<pre fin-escape><p fin-let-count="{3}">Counting {$count} times...</p></pre>
+    </td>
+</tr>
             </tbody>
         </table>
     </div>

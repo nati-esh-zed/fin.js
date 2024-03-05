@@ -464,7 +464,7 @@ const Fin = function() {
     this.contexts = new Map();
     const zeroWidthWhiteSpace = "\u200B";
     this.zeroWidthWhiteSpace = zeroWidthWhiteSpace;
-    this.update = function(element, reprocessAttributes, parentContext) {
+    this.update = function(element, reprocessAttributes, parentContext, local_) {
         console.assert(element !== undefined && element instanceof HTMLElement, 
             '<element> must be instance of HTMLElement',
             element);
@@ -477,25 +477,29 @@ const Fin = function() {
             // create a new Context and add it to contexts map
             fin.contexts.set(element, new Context(element, parentContext));
         }
+        local_ = local_ === undefined ? {} : local_;
         const context    = fin.contexts.get(element);
         const clone      = context.clone;
         let   escapeHtml = false;
+        let   escapeFin  = false;
         if(!initialized || reprocessAttributes) {
             const finPrefix = 'fin-';
-            const finLetPrefix = 'let-';
-            const finLetAsyncPrefix = 'let-async-';
-            const finOnPrefix = 'on';
-            const finHtmlAsyncPrefix = 'html-async';
-            const finHtmlPrefix = 'html';
-            const finIfPrefix = 'if';
-            const finForPrefix = 'for';
+            const finLetToken = 'let-';
+            const finLetAsyncToken = 'let-async-';
+            const finOnToken = 'on';
+            const finHtmlAsyncToken = 'html-async';
+            const finHtmlToken = 'html';
+            const finIfToken = 'if';
+            const finForToken = 'for';
+            const finEscapeToken = 'escape';
+            const finEscapeHtmlToken = 'escape-html';
             // update attributes
             for(let attribute of clone.attributes) {
-                if(attribute.name.indexOf(finPrefix) === 0) {
+                if(!escapeFin && attribute.name.indexOf(finPrefix) === 0) {
                     const finCommand = attribute.name.substring(finPrefix.length);
                     // fin-let-async-<var-name>
-                    if(finCommand.indexOf(finLetAsyncPrefix) === 0) {
-                        const finLetAsyncVarNameRaw = finCommand.substring(finLetAsyncPrefix.length);
+                    if(finCommand.indexOf(finLetAsyncToken) === 0) {
+                        const finLetAsyncVarNameRaw = finCommand.substring(finLetAsyncToken.length);
                         // turn `-my-var` to `MyVar` in var name
                         finLetAsyncVarName = context.varName(finLetAsyncVarNameRaw);
                         if(finLetAsyncVarName.length > 0 && finLetAsyncVarName.search(/^[a-zA-Z_\-][\w_\-]*$/gm) === 0) {
@@ -510,7 +514,7 @@ const Fin = function() {
                                         : '"'+attribute.value+'"';
                                     (async function() {
                                         try {
-                                            const local   = { promise: undefined };
+                                            const local   = { ...local_, promise: undefined };
                                             const varCode = '{ local.promise = '+varValueStr+'}';
                                             context.processCodeBlocks(varCode, element, 
                                                 { wholeBlock: true, updateAttributes: true }, 
@@ -533,8 +537,8 @@ const Fin = function() {
                         }
                     } 
                     // fin-let-<var-name>
-                    else if(finCommand.indexOf(finLetPrefix) === 0) {
-                        const finLetVarNameRaw = finCommand.substring(finLetPrefix.length);
+                    else if(finCommand.indexOf(finLetToken) === 0) {
+                        const finLetVarNameRaw = finCommand.substring(finLetToken.length);
                         // turn `-my-var` to `MyVar` in var name
                         finLetVarName = context.varName(finLetVarNameRaw);
                         if(finLetVarName.length > 0 && finLetVarName.search(/^[a-zA-Z_\-][\w_\-]*$/gm) === 0) {
@@ -542,9 +546,11 @@ const Fin = function() {
                                 ? attribute.value.substring(1, attribute.value.length-1)
                                 : '"'+attribute.value+'"';
                             try {
-                                const local   = { value: undefined };
+                                const local   = { ...local_, value: undefined };
                                 const varCode = '{ local.value = '+varValueStr+'}';
-                                context.processCodeBlocks(varCode, element, { wholeBlock: true, updateAttributes: true }, local);
+                                context.processCodeBlocks(varCode, element, 
+                                    { wholeBlock: true, updateAttributes: true }, 
+                                    local);
                                 context.setOrNew(finLetVarName, local.value, true);
                             } catch(error) {
                                 console.error('Error when setting variable: '+attribute.name+'='+attribute.value+'\n', error, clone);
@@ -554,15 +560,15 @@ const Fin = function() {
                         }
                     } 
                     // fin-on<event>
-                    else if(finCommand.indexOf(finOnPrefix) === 0) {
+                    else if(finCommand.indexOf(finOnToken) === 0) {
                         if(!initialized) {
                             if(!context.onEventHandling) {
                                 context.onEventHandling = true;
-                                const finEventName = finCommand.substring(finOnPrefix.length);
+                                const finEventName = finCommand.substring(finOnToken.length);
                                 const eventHandler = function(event) {
                                     'use strict';
                                     const eventCode = attribute.value;
-                                    const local = { event: event };
+                                    const local = { ...local_, event: event };
                                     context.processCodeBlocks(eventCode, element, 
                                         { wholeBlock: true, updateAttributes: false },
                                         local);
@@ -573,52 +579,53 @@ const Fin = function() {
                         }
                     } 
                     // fin-html-async
-                    else if(finCommand === finHtmlAsyncPrefix) {
+                    else if(finCommand === finHtmlAsyncToken) {
                         if(!context.htmlAsyncProcessing) {
                             context.htmlAsyncProcessing = true;
                             (async function() {
                                 const htmlCode = '{ local.promise = '+attribute.value.substring(1,attribute.value.length-1)+'}';
-                                const local   = { promise: undefined };
+                                const local   = { ...local_, promise: undefined };
                                 context.processCodeBlocks(htmlCode, element, 
                                     { wholeBlock: false, updateAttributes: true },
                                     local); 
                                 const response = await local.promise;
                                 context.clone.innerHTML = response;
                                 element.innerHTML = response;
-                                fin.update(element, false, context.parentContext);
+                                fin.update(element, false, context.parentContext, local_);
                                 context.htmlAsyncProcessing = false;
                             })();
                         }
                     } 
                     // fin-html
-                    else if(finCommand === finHtmlPrefix) {
+                    else if(finCommand === finHtmlToken) {
                         if(!context.htmlProcessing) {
                             context.htmlProcessing = true;
-                            escapeHtml = true;
+                            // escapeHtml = true;
                             const htmlCode = attribute.value;
                             const output = context.processCodeBlocks(htmlCode, element, 
-                                { wholeBlock: false, updateAttributes: true }); 
+                                { wholeBlock: false, updateAttributes: true },
+                                local_); 
                             context.clone.innerHTML = output;
                             element.innerHTML = output;
-                            fin.update(element, false, context.parentContext);
+                            fin.update(element, false, context.parentContext, local_);
                             context.htmlProcessing = false;
                         }
                     } 
                     // fin-if
-                    else if(finCommand === finIfPrefix) {
+                    else if(finCommand === finIfToken) {
                         if(!context.htmlProcessing) {
                             context.htmlProcessing = true;
                             escapeHtml = true;
                             const conditionCode = '{ local.condition = '+attribute.value.substring(1,attribute.value.length-1)+'}';
-                            const local   = { condition: undefined };
+                            const local   = { ...local_, condition: undefined };
                             context.processCodeBlocks(conditionCode, element, 
                                 { wholeBlock: true, updateAttributes: true },
                                 local); 
-                            const condition = local.condition;
+                            const condition = !!local.condition;
                             if(condition) {
                                 const output = context.clone.innerHTML;
                                 element.innerHTML = output;
-                                fin.update(element, false, context.parentContext);
+                                fin.update(element, false, context.parentContext, local_);
                             } else {
                                 element.innerHTML = '';
                             }
@@ -626,26 +633,83 @@ const Fin = function() {
                         }
                     } 
                     // fin-for
-                    else if(finCommand === finForPrefix) {
+                    else if(finCommand === finForToken) {
                         if(!context.htmlProcessing) {
                             context.htmlProcessing = true;
                             escapeHtml = true;
-                            element.innerHTML = '';
+                            for(let child of element.children) {
+                                if(child)
+                                    context.removeElement(child);
+                            }
+                            element.replaceChildren();
                             const local = {
-                                __innerHTML__: context.clone.innerHTML,
+                                ...local_, 
+                                __clone__: context.clone,
                                 __parent__: element,
                                 __parentContext__: context,
-                                tag: 'div',
-                            };
+                            }; 
                             const forLoopCode = '{ for('+attribute.value.substring(1,attribute.value.length-1)+') \{ '+
-                            'const element = document.createElement(local.tag); '+
-                            'const output = context.processCodeBlocks(local.__innerHTML__, element, \{ wholeBlock: true, updateAttributes: true \}, local); '+
-                            'element.innerHTML = output; '+
-                            'local.__parent__.appendChild(element); '+
+                            'const __tagDefined__ = local.tag !== undefined; '+
+                            'const element = document.createElement(__tagDefined__ ? local.tag : \'div\'); '+
+                            'if(!__tagDefined__) { '+
+                            '  const children = []; '+
+                            '  for(let child of local.__clone__.children) { '+
+                            '    const childClone = child.cloneNode(); '+
+                            '    childClone.innerHTML = child.innerHTML; '+
+                            '    children.push(childClone); '+
+                            '  } '+
+                            '  for(let child of children) { '+
+                            '    local.__parent__.appendChild(child); '+
+                            '    fin.update(child, true, local.__parentContext__, local); '+
+                            '  }'+
+                            '} else { '+
+                            '  element.innerHTML = local.__clone__.innerHTML; '+
+                            '  local.__parent__.appendChild(element); '+
+                            '  fin.update(element, true, local.__parentContext__, local); '+
+                            '} '+
                             '\} }';
                             context.processCodeBlocks(forLoopCode, element, 
                                 { wholeBlock: true, updateAttributes: true },
                                 local); 
+                            context.htmlProcessing = false;
+                        }
+                    } 
+                    // fin-escape
+                    else if(finCommand === finEscapeToken) {
+                        let condition = true;
+                        if(attribute.value !== '') {
+                            const conditionCode = '{ local.condition = '+attribute.value.substring(1,attribute.value.length-1)+'}';
+                            const local   = { ...local_, condition: undefined };
+                            context.processCodeBlocks(conditionCode, element, 
+                                { wholeBlock: true, updateAttributes: true },
+                                local); 
+                            condition = !!local.condition;
+                        }
+                        escapeFin = condition;
+                        element.innerHTML = clone.innerHTML;
+                        // if(condition)
+                        //     break;
+                    } 
+                    // fin-escape-html
+                    else if(finCommand === finEscapeHtmlToken) {
+                        let condition = true;
+                        if(attribute.value !== '') {
+                            const conditionCode = '{ local.condition = '+attribute.value.substring(1,attribute.value.length-1)+'}';
+                            const local   = { ...local_, condition: undefined };
+                            context.processCodeBlocks(conditionCode, element, 
+                                { wholeBlock: true, updateAttributes: true },
+                                local); 
+                            condition = !!local.condition;
+                        }
+                        if(condition && !context.htmlProcessing) {
+                            context.htmlProcessing = true;
+                            escapeHtml = true;
+                            const input  = element.innerHTML;
+                            const output = input;
+                            const pre = document.createElement('pre');
+                            pre.textContent = output;
+                            element.replaceChildren(pre);
+                            fin.update(element, false, context.parentContext, local_);
                             context.htmlProcessing = false;
                         }
                     } 
@@ -654,7 +718,8 @@ const Fin = function() {
                         if(!context.attributeProcessing) {
                             context.attributeProcessing = true;
                             const output = context.processCodeBlocks(attribute.value, element, 
-                                { wholeBlock: true, updateAttributes: true });
+                                { wholeBlock: true, updateAttributes: true },
+                                local_);
                             element.setAttribute(finCommand, output);
                             context.attributeProcessing = false;
                         }
@@ -663,28 +728,38 @@ const Fin = function() {
                     else {
                         console.error('Error invalid attribute: ', attribute, clone);
                     }
-                    element.removeAttribute(attribute.name);
+                    if(!initialized)
+                        element.removeAttribute(attribute.name);
                 }
             }
         }
         // update child nodes
-        if(!escapeHtml && !context.htmlProcessing) {
+        if(!(escapeHtml || escapeFin) && !context.htmlProcessing) {
             context.htmlProcessing = true;
             let childIndex = 0;
+            let childrenToBeRemoved = [];
             for(let child of clone.childNodes) {
                 const mainChild = element.childNodes[childIndex++];
                 if(child.nodeName === '#text') {
                     const content = child.textContent;
                     const output  = context.processCodeBlocks(content, element, {
-                        wholeBlock: false,
-                        reprocessAttributes: false
-                    });
+                            wholeBlock: false,
+                            reprocessAttributes: false
+                        },
+                        local_
+                    );
                     if(mainChild instanceof Node)
                         mainChild.textContent = output;
                 } else if(child instanceof HTMLElement 
                         && mainChild instanceof HTMLElement) {
-                    fin.update(mainChild, reprocessAttributes, context);
+                    fin.update(mainChild, reprocessAttributes, context, local_);
+                } else {
+                    childrenToBeRemoved.push(child);
                 }
+            }
+            // remove childrenToBeRemoved
+            for(let child of childrenToBeRemoved) {
+                clone.removeChild(child);
             }
             context.htmlProcessing = false;
         }

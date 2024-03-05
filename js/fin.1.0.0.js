@@ -54,6 +54,10 @@
  *        evaluates to a truthy value, or else sets the innerHTML to empty string.
  *     fin-for="{...; ...; ...}"
  *        processes the iteration code block along with the innerHTML. 
+ *     fin-escape="{...}"|fin-escape
+ *        processes the code block as a condition and skips processing of fin code in the innerHTML.
+ *     fin-escape-html="{...}"|fin-escape-html
+ *        processes the code block as a condition and converts the innerHTML to text content.
  *     fin-<attribute>="{...}" 
  *        processes the code block and sets the attribute <attribute> with the value of the output.
  * 
@@ -86,6 +90,8 @@
  *      [this] update
  *      getContext
  *      jsonToString
+ *      jsonArray
+ *      JsonObject
  *      jsonify
  *      fetchText
  *      fetchJson
@@ -567,7 +573,7 @@ const Fin = function() {
                                 const finEventName = finCommand.substring(finOnToken.length);
                                 const eventHandler = function(event) {
                                     'use strict';
-                                    const eventCode = attribute.value;
+                                    const eventCode = attribute.value.trim();
                                     const local = { ...local_, event: event };
                                     context.processCodeBlocks(eventCode, element, 
                                         { wholeBlock: true, updateAttributes: false },
@@ -582,14 +588,16 @@ const Fin = function() {
                     else if(finCommand === finHtmlAsyncToken) {
                         if(!context.htmlAsyncProcessing) {
                             context.htmlAsyncProcessing = true;
+                            element.innerHTML = clone.innerHTML;
+                            fin.update(element, false, context.parentContext, local_);
                             (async function() {
-                                const htmlCode = '{ local.promise = '+attribute.value.substring(1,attribute.value.length-1)+'}';
+                                const htmlCode = '{ local.promise = '+attribute.value.trim().substring(1,attribute.value.length-1)+'}';
                                 const local   = { ...local_, promise: undefined };
                                 context.processCodeBlocks(htmlCode, element, 
                                     { wholeBlock: false, updateAttributes: true },
                                     local); 
-                                const response = await local.promise;
-                                context.clone.innerHTML = response;
+                                const response    = await local.promise;
+                                clone.innerHTML   = response;
                                 element.innerHTML = response;
                                 fin.update(element, false, context.parentContext, local_);
                                 context.htmlAsyncProcessing = false;
@@ -600,14 +608,22 @@ const Fin = function() {
                     else if(finCommand === finHtmlToken) {
                         if(!context.htmlProcessing) {
                             context.htmlProcessing = true;
-                            // escapeHtml = true;
-                            const htmlCode = attribute.value;
+                            if(!initialized)
+                                context.savedInnerHTML = clone.innerHTML;
+                            const htmlCode = attribute.value.trim();
                             const output = context.processCodeBlocks(htmlCode, element, 
                                 { wholeBlock: false, updateAttributes: true },
-                                local_); 
-                            context.clone.innerHTML = output;
-                            element.innerHTML = output;
-                            fin.update(element, false, context.parentContext, local_);
+                                local_);
+                            if(!output || (htmlCode.charAt(0) == '{' && 
+                                htmlCode.charAt(htmlCode.length-1) == '}' &&
+                                output.trim() === 'undefined')) {
+                                element.innerHTML = context.savedInnerHTML;
+                                fin.update(element, false, context.parentContext, local_);
+                            } else {
+                                clone.innerHTML = output;
+                                element.innerHTML = output;
+                                fin.update(element, false, context.parentContext, local_);
+                            }
                             context.htmlProcessing = false;
                         }
                     } 
@@ -615,7 +631,7 @@ const Fin = function() {
                     else if(finCommand === finIfToken) {
                         if(!context.htmlProcessing) {
                             context.htmlProcessing = true;
-                            escapeHtml = true;
+                            // escapeHtml = true;
                             const conditionCode = '{ local.condition = '+attribute.value.substring(1,attribute.value.length-1)+'}';
                             const local   = { ...local_, condition: undefined };
                             context.processCodeBlocks(conditionCode, element, 
@@ -623,11 +639,11 @@ const Fin = function() {
                                 local); 
                             const condition = !!local.condition;
                             if(condition) {
-                                const output = context.clone.innerHTML;
-                                element.innerHTML = output;
+                                element.innerHTML = clone.innerHTML;
                                 fin.update(element, false, context.parentContext, local_);
                             } else {
                                 element.innerHTML = '';
+                                escapeHtml = true;
                             }
                             context.htmlProcessing = false;
                         }
@@ -637,6 +653,7 @@ const Fin = function() {
                         if(!context.htmlProcessing) {
                             context.htmlProcessing = true;
                             escapeHtml = true;
+                            const innerHTML =  clone.innerHTML;
                             for(let child of element.children) {
                                 if(child)
                                     context.removeElement(child);
@@ -644,16 +661,16 @@ const Fin = function() {
                             element.replaceChildren();
                             const local = {
                                 ...local_, 
-                                __clone__: context.clone,
+                                __parent_clone__: clone,
                                 __parent__: element,
                                 __parentContext__: context,
                             }; 
-                            const forLoopCode = '{ for('+attribute.value.substring(1,attribute.value.length-1)+') \{ '+
+                            const forLoopCode = '{ for('+attribute.value.substring(1,attribute.value.length-1)+') { '+
                             'const __tagDefined__ = local.tag !== undefined; '+
                             'const element = document.createElement(__tagDefined__ ? local.tag : \'div\'); '+
                             'if(!__tagDefined__) { '+
                             '  const children = []; '+
-                            '  for(let child of local.__clone__.children) { '+
+                            '  for(let child of local.__parent_clone__.children) { '+
                             '    const childClone = child.cloneNode(); '+
                             '    childClone.innerHTML = child.innerHTML; '+
                             '    children.push(childClone); '+
@@ -663,14 +680,15 @@ const Fin = function() {
                             '    fin.update(child, true, local.__parentContext__, local); '+
                             '  }'+
                             '} else { '+
-                            '  element.innerHTML = local.__clone__.innerHTML; '+
+                            '  element.innerHTML = local.__parent_clone__.innerHTML; '+
                             '  local.__parent__.appendChild(element); '+
-                            '  fin.update(element, true, local.__parentContext__, local); '+
+                            '    fin.update(child, true, local.__parentContext__, local); '+
                             '} '+
-                            '\} }';
+                            '} }';
                             context.processCodeBlocks(forLoopCode, element, 
                                 { wholeBlock: true, updateAttributes: true },
                                 local); 
+                            clone.innerHTML = innerHTML;
                             context.htmlProcessing = false;
                         }
                     } 
@@ -687,8 +705,6 @@ const Fin = function() {
                         }
                         escapeFin = condition;
                         element.innerHTML = clone.innerHTML;
-                        // if(condition)
-                        //     break;
                     } 
                     // fin-escape-html
                     else if(finCommand === finEscapeHtmlToken) {
@@ -853,6 +869,27 @@ const Fin = function() {
         return jsonStr;
     };
     this.jsonToString = jsonToString;
+    const jsonArray = function(array) {
+        const jsonArray_ = [];
+        for(let entry of array) {
+            if(entry === undefined || entry === null)
+                jsonArray_.push(null);
+            else if(typeof entry === 'string')
+                jsonArray_.push(entry);
+            else if(typeof entry === 'number')
+                jsonArray_.push(entry);
+            else if(typeof entry === 'boolean')
+                jsonArray_.push(entry);
+            else if(entry instanceof Array)
+                jsonArray_.push(jsonArray(entry));
+            else if(entry instanceof Object)
+                jsonArray_.push(new JsonObject(entry));
+            else
+                jsonArray_.push(entry);
+        }
+        return jsonArray_;
+    };
+    this.jsonArray = jsonArray;
     const JsonObject = function(object) {
         for(let entry of Object.entries(object)) {
             if(entry[1] === undefined || entry[1] === null)
@@ -864,7 +901,7 @@ const Fin = function() {
             else if(typeof entry[1] === 'boolean')
                 this[entry[0]] = entry[1];
             else if(entry[1] instanceof Array)
-                this[entry[0]] = entry[1];
+                this[entry[0]] = jsonArray(entry[1]);
             else if(entry[1] instanceof Object)
                 this[entry[0]] = new JsonObject(entry[1]);
             else
@@ -876,7 +913,13 @@ const Fin = function() {
         return jsonToString(this);
     };
     this.JsonObject = JsonObject;
+    const jsonObject = function(object) {
+        return new JsonObject(object);
+    };
+    this.jsonObject = jsonObject;
     const jsonify = function(object) {
+        if(object instanceof Array)
+            return jsonArray(object);
         return new JsonObject(object);
     };
     this.jsonify = jsonify;

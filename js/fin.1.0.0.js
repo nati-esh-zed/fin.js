@@ -106,7 +106,6 @@
  *      parentContext
  *      variables
  *      referenceList
- *      letAsyncWaitingList
  *    functions:
  *      varName
  *      setVar
@@ -176,7 +175,6 @@ const Fin = function() {
         this.parentContext = parentContext;
         this.variables = new Map();
         this.referenceList = new Map();
-        this.letAsyncWaitingList = new Map();
         // clone elements
         this.clone = element.cloneNode();
         this.clone.innerHTML = element.innerHTML;
@@ -511,31 +509,27 @@ const Fin = function() {
                         if(finLetAsyncVarName.length > 0 && finLetAsyncVarName.search(/^[a-zA-Z_\-][\w_\-]*$/gm) === 0) {
                             if(!context.letAsyncWaiting) {
                                 context.letAsyncWaiting = true;
-                                const locked = context.letAsyncWaitingList.get(finLetAsyncVarName);
-                                if(!locked) {
-                                    context.letAsyncWaitingList.set(finLetAsyncVarName, true);
-                                    const variable = context.setOrNew(finLetAsyncVarName, undefined);
-                                    const varValueStr = attribute.value.charAt(0) === '{' 
-                                        ? attribute.value.substring(1, attribute.value.length-1)
-                                        : '"'+attribute.value+'"';
-                                    (async function() {
-                                        try {
-                                            const local   = { ...local_, promise: undefined };
-                                            const varCode = '{ local.promise = '+varValueStr+'}';
-                                            context.processCodeBlocks(varCode, element, 
-                                                { wholeBlock: true, updateAttributes: true }, 
-                                                local);
-                                            variable.value = await local.promise;
-                                            context.setVar(variable);
-                                        } catch(error) {
-                                            console.error('Error when setting variable: '+attribute.name+'='+attribute.value+'\n', 
-                                            error, clone);
-                                        } finally {
-                                            context.letAsyncWaitingList.set(finLetAsyncVarName, false);
-                                        }
-                                    })();
-                                }
-                                context.letAsyncWaiting = false;
+                                const variable = context.setOrNew(finLetAsyncVarName, undefined);
+                                const varValueStr = attribute.value.charAt(0) === '{' 
+                                    ? attribute.value.substring(1, attribute.value.length-1)
+                                    : '"'+attribute.value+'"';
+                                (async function() {
+                                    try {
+                                        const local   = { ...local_, promise: undefined };
+                                        const varCode = '{ local.promise = '+varValueStr+'}';
+                                        context.processCodeBlocks(varCode, element, 
+                                            { wholeBlock: true, updateAttributes: true }, 
+                                            local);
+                                        variable.value = await local.promise;
+                                        context.setVar(variable);
+                                    } catch(error) {
+                                        console.error('Error when setting variable: '+attribute.name+'='+attribute.value+'\n', 
+                                        error, clone);
+                                    }
+                                    context.letAsyncWaiting = false;
+                                })();
+                            } else  {
+                                console.warn('context.letAsyncWaiting ', context.letAsyncWaiting);
                             }
                         } else {
                             console.error('Error invalid variable identifier: '+finLetAsyncVarName, 
@@ -581,27 +575,43 @@ const Fin = function() {
                                 };
                                 element.addEventListener(finEventName, eventHandler);
                                 context.onEventHandling = false;
+                            } else  {
+                                console.warn('context.onEventHandling ', context.onEventHandling);
                             }
                         }
                     } 
                     // fin-html-async
                     else if(finCommand === finHtmlAsyncToken) {
-                        if(!context.htmlAsyncProcessing) {
-                            context.htmlAsyncProcessing = true;
-                            element.innerHTML = clone.innerHTML;
-                            fin.update(element, false, context.parentContext, local_);
-                            (async function() {
-                                const htmlCode = '{ local.promise = '+attribute.value.trim().substring(1,attribute.value.length-1)+'}';
-                                const local   = { ...local_, promise: undefined };
-                                context.processCodeBlocks(htmlCode, element, 
-                                    { wholeBlock: false, updateAttributes: true },
-                                    local); 
-                                const response    = await local.promise;
-                                clone.innerHTML   = response;
-                                element.innerHTML = response;
-                                fin.update(element, false, context.parentContext, local_);
-                                context.htmlAsyncProcessing = false;
-                            })();
+                        if(!context.htmlProcessing) {
+                            context.htmlProcessing = true;
+                            if(!context.htmlAsyncProcessing) {
+                                context.htmlAsyncProcessing = true;
+                                if(!initialized)
+                                    context.savedInnerHTML = element.innerHTML;
+                                for(let child of element.children) {
+                                    if(child)
+                                        context.removeElement(child);
+                                }
+                                clone.innerHTML   = context.savedInnerHTML;
+                                element.innerHTML = context.savedInnerHTML;
+                                (async function() {
+                                    const htmlCode = '{ local.promise = '+attribute.value.trim().substring(1,attribute.value.length-1)+'}';
+                                    const local   = { ...local_, promise: undefined };
+                                    context.processCodeBlocks(htmlCode, element, 
+                                        { wholeBlock: false, updateAttributes: true },
+                                        local); 
+                                    const response    = await local.promise;
+                                    clone.innerHTML   = response;
+                                    element.innerHTML = response;
+                                    fin.update(element, false, context.parentContext, local_);
+                                    context.htmlAsyncProcessing = false;
+                                })();
+                            } else  {
+                                console.warn('context.htmlAsyncProcessing ', context.htmlAsyncProcessing);
+                            }
+                            context.htmlProcessing = false;
+                        } else  {
+                            console.warn('context.htmlProcessing ', context.htmlProcessing);
                         }
                     } 
                     // fin-html
@@ -609,7 +619,11 @@ const Fin = function() {
                         if(!context.htmlProcessing) {
                             context.htmlProcessing = true;
                             if(!initialized)
-                                context.savedInnerHTML = clone.innerHTML;
+                                context.savedInnerHTML = element.innerHTML;
+                            for(let child of element.children) {
+                                if(child)
+                                    context.removeElement(child);
+                            }
                             const htmlCode = attribute.value.trim();
                             const output = context.processCodeBlocks(htmlCode, element, 
                                 { wholeBlock: false, updateAttributes: true },
@@ -617,14 +631,15 @@ const Fin = function() {
                             if(!output || (htmlCode.charAt(0) == '{' && 
                                 htmlCode.charAt(htmlCode.length-1) == '}' &&
                                 output.trim() === 'undefined')) {
+                                clone.innerHTML   = context.savedInnerHTML;
                                 element.innerHTML = context.savedInnerHTML;
-                                fin.update(element, false, context.parentContext, local_);
                             } else {
-                                clone.innerHTML = output;
+                                clone.innerHTML   = output;
                                 element.innerHTML = output;
-                                fin.update(element, false, context.parentContext, local_);
                             }
                             context.htmlProcessing = false;
+                        } else  {
+                            console.warn('context.htmlProcessing ', context.htmlProcessing);
                         }
                     } 
                     // fin-if
@@ -646,6 +661,8 @@ const Fin = function() {
                                 escapeHtml = true;
                             }
                             context.htmlProcessing = false;
+                        } else  {
+                            console.warn('context.htmlProcessing ', context.htmlProcessing);
                         }
                     } 
                     // fin-for
@@ -690,6 +707,8 @@ const Fin = function() {
                                 local); 
                             clone.innerHTML = innerHTML;
                             context.htmlProcessing = false;
+                        } else  {
+                            console.warn('context.htmlProcessing ', context.htmlProcessing);
                         }
                     } 
                     // fin-escape
@@ -738,6 +757,8 @@ const Fin = function() {
                                 local_);
                             element.setAttribute(finCommand, output);
                             context.attributeProcessing = false;
+                        } else  {
+                            console.warn('context.attributeProcessing ', context.attributeProcessing);
                         }
                     } 
                     // fin-

@@ -2,8 +2,10 @@
 /**
  * fin.js v1.0.0
  * 
- * final js library for fine execution of javascript code 
- * inside HTML attributes and bodies without the script tag.
+ * @author Natnael Eshetu
+ * @license MIT License copyright (c) 2024
+ * @summary final js library for fine execution of javascript code 
+ *          inside HTML attributes and bodies without the script tag.
  *
  * SETUP:
  * 
@@ -402,17 +404,13 @@ const Fin = function() {
                     if(context.has(varName)) {
                         let varValueCode;
                         const bUpdateAttributes = !updateAttributes ? false : true;
-                        try {
-                            varValueCode = 'context.get(\''+varName+'\',element,'+bUpdateAttributes+').value'+varAccess;
-                        } catch(error) {
-                            varValueCode = '{ERROR@{'+matchVP+'}:'+error+'}';
-                            console.error(varValueCode, matchVP);
-                        }
+                        varValueCode = 'context.get(\''+varName+'\',element,'+bUpdateAttributes+').value'+varAccess;
                         return varValueCode;
                     } else if(returnUndefinedIfNotDefined) {
                         return undefined;
                     } else {
                         const error = '"{ERROR@{'+matchVP+'}:`'+varName+'` is not defined}"';
+                        console.error(error, context.clone, context.element);
                         return error;
                     }
                 }
@@ -670,42 +668,85 @@ const Fin = function() {
                         if(!context.htmlProcessing) {
                             context.htmlProcessing = true;
                             escapeHtml = true;
-                            const innerHTML =  clone.innerHTML;
+                            if(!initialized)
+                                context.savedInnerHTML = element.innerHTML;
                             for(let child of element.children) {
                                 if(child)
                                     context.removeElement(child);
                             }
-                            element.replaceChildren();
                             const local = {
                                 ...local_, 
                                 __parent_clone__: clone,
                                 __parent__: element,
                                 __parentContext__: context,
+                                __savedHTML__: context.savedInnerHTML
                             }; 
-                            const forLoopCode = '{ for('+attribute.value.substring(1,attribute.value.length-1)+') { '+
+                            const forDeclarations = attribute.value.substring(1,attribute.value.length-1);
+                            const match_of_in     = forDeclarations.matchAll(/let?\s+((?:\w+\s*(?:,\s*)?)+|\[(?:\w+\s*(?:,\s*)?)+\]|\{(?:\w+\s*(?:,\s*)?)+\})\s+(of|in)\s+(.*)/gm).next().value;
+                            const match_regular   = forDeclarations.matchAll(/(.*;.*;.*)/gm).next().value;
+                            let local_declarations = '';
+                            let varNames = [];
+                            if(match_of_in) {
+                                const match_vars = match_of_in[1].matchAll(/((?:\w+\s*(?:,\s*)?)+)|\[((?:\w+\s*(?:,\s*)?)+)\]|\{((?:\w+\s*(?:,\s*)?)+)\}/gm).next().value;
+                                if(match_vars[1])
+                                    varNames = match_vars[1].split(', ');
+                                else if(match_vars[2])
+                                    varNames = match_vars[2].split(', ');
+                                else if(match_vars[3])
+                                    varNames = match_vars[3].split(', ');
+                            } else if(match_regular) {
+                                const match_vars = match_regular[1].matchAll(/(?:let\s+)?((?:(?:\w+\s=.*?\s*(?:,\s*)?)+)*);.*;.*/gm).next().value;
+                                if(match_vars[1]) {
+                                    varNames = match_vars[1].split(', ').map(function(varName) {
+                                        return varName.match(/(\w+)/gm)[0];
+                                    }); 
+                                }
+                            } else {
+                                error = 'ERROR@{for('+forDeclarations+')...}: bad for loop declaration block';
+                                console.error(error, matchVP);
+                            }
+                            for(let varName of varNames)
+                                local_declarations += 'local.'+varName+' = '+varName+'; '; 
+                            const forLoopCode = '{ for('+forDeclarations+') { '+
+                            local_declarations+
                             'const __tagDefined__ = local.tag !== undefined; '+
                             'const element = document.createElement(__tagDefined__ ? local.tag : \'div\'); '+
+                            'element.innerHTML = local.__savedHTML__; '+
+                            'const children = []; '+
                             'if(!__tagDefined__) { '+
-                            '  const children = []; '+
-                            '  for(let child of local.__parent_clone__.children) { '+
-                            '    const childClone = child.cloneNode(); '+
-                            '    childClone.innerHTML = child.innerHTML; '+
-                            '    children.push(childClone); '+
-                            '  } '+
-                            '  for(let child of children) { '+
-                            '    local.__parent__.appendChild(child); '+
-                            '    fin.update(child, true, local.__parentContext__, local); '+
-                            '  }'+
+                            '    for(let child of element.childNodes) { '+
+                            '        children.push(child); '+
+                            '    } '+
                             '} else { '+
-                            '  element.innerHTML = local.__parent_clone__.innerHTML; '+
-                            '  local.__parent__.appendChild(element); '+
-                            '    fin.update(child, true, local.__parentContext__, local); '+
+                            '    children.push(element); '+
+                            '} '+
+                            'for(let child of children) { '+
+                            '    if(child.nodeName === \'#text\') { '+
+                            '        const childClone = document.createTextNode(child.innerHTML); '+
+                            '        const content = child.textContent; '+
+                            '        const output  = context.processCodeBlocks(content, local.__parent__, { '+
+                            '                wholeBlock: false, '+
+                            '                reprocessAttributes: false '+
+                            '            }, '+
+                            '            local '+
+                            '        ); '+
+                            '        child.textContent = output; '+
+                            '        local.__parent__.appendChild(child); '+
+                            '        local.__parent_clone__.appendChild(childClone); '+
+                            '    } else { '+
+                            '        const childClone = child.cloneNode(); '+
+                            '        childClone.innerHTML = child.innerHTML; '+
+                            '        fin.update(child, true, local.__parentContext__, local); '+
+                            '        local.__parent__.appendChild(child); '+
+                            '        local.__parent_clone__.appendChild(childClone); '+
+                            '     } '+
                             '} '+
                             '} }';
+                            element.replaceChildren();
+                            clone.replaceChildren();
                             context.processCodeBlocks(forLoopCode, element, 
                                 { wholeBlock: true, updateAttributes: true },
                                 local); 
-                            clone.innerHTML = innerHTML;
                             context.htmlProcessing = false;
                         } else  {
                             console.warn('context.htmlProcessing ', context.htmlProcessing);
@@ -788,7 +829,7 @@ const Fin = function() {
                     if(mainChild instanceof Node)
                         mainChild.textContent = output;
                 } else if(child instanceof HTMLElement 
-                        && mainChild instanceof HTMLElement) {
+                    && mainChild instanceof HTMLElement) {
                     fin.update(mainChild, reprocessAttributes, context, local_);
                 } else {
                     childrenToBeRemoved.push(child);

@@ -703,7 +703,7 @@ const Fin = function() {
                                 }
                             } else {
                                 error = 'ERROR@{for('+forDeclarations+')...}: bad for loop declaration block';
-                                console.error(error, matchVP);
+                                console.error(error, context.element);
                             }
                             for(let varName of varNames)
                                 local_declarations += 'local.'+varName+' = '+varName+'; '; 

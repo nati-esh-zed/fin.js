@@ -60,8 +60,11 @@
  *        processes the code block as a condition and skips processing of fin code in the innerHTML.
  *     fin-escape-html="{...}"|fin-escape-html
  *        processes the code block as a condition and converts the innerHTML to text content.
- *     fin-<attribute>="{...}" 
+ *     fin-set-if-<attribute>="{...}" 
  *        processes the code block and sets the attribute <attribute> with the value of the output.
+ *     fin-<attribute>="{...}" 
+ *        processes the code block as a conditional expression and sets the attribute <attribute> to '' 
+ *        if the condition evaluates to a truthy value.
  * 
  * NOTES:
  * 
@@ -482,7 +485,7 @@ const Fin = function() {
         local_ = local_ === undefined ? {} : local_;
         const context    = fin.contexts.get(element);
         const clone      = context.clone;
-        let   escapeHtml = false;
+        let   escapeHtml = !!context.escapeHtml;
         let   escapeFin  = false;
         if(!initialized || reprocessAttributes) {
             const finPrefix = 'fin-';
@@ -495,6 +498,7 @@ const Fin = function() {
             const finForToken = 'for';
             const finEscapeToken = 'escape';
             const finEscapeHtmlToken = 'escape-html';
+            const finSetIfToken = 'set-if-';
             // update attributes
             for(let attribute of clone.attributes) {
                 if(!escapeFin && attribute.name.indexOf(finPrefix) === 0) {
@@ -780,6 +784,7 @@ const Fin = function() {
                         if(condition && !context.htmlProcessing) {
                             context.htmlProcessing = true;
                             escapeHtml = true;
+                            context.escapeHtml = true;
                             const input  = element.innerHTML;
                             const output = input;
                             const pre = document.createElement('pre');
@@ -787,6 +792,25 @@ const Fin = function() {
                             element.replaceChildren(pre);
                             fin.update(element, false, context.parentContext, local_);
                             context.htmlProcessing = false;
+                        }
+                    } 
+                    // fin-set-if-<attribute>
+                    else if(finCommand.indexOf(finSetIfToken) === 0) {
+                        if(!context.setIfAttributeProcessing) {
+                            context.setIfAttributeProcessing = true;
+                            const attributeName = finCommand.substring(finSetIfToken.length);
+                            const conditionCode = '{ local.condition = '+attribute.value.substring(1,attribute.value.length-1)+'}';
+                            const local   = { ...local_, condition: undefined };
+                            context.processCodeBlocks(conditionCode, element, 
+                                { wholeBlock: true, updateAttributes: true },
+                                local); 
+                            const condition = !!local.condition;
+                            if(condition) {
+                                element.setAttribute(attributeName, '');
+                            }
+                            context.setIfAttributeProcessing = false;
+                        } else  {
+                            console.warn('context.setIfAttributeProcessing ', context.setIfAttributeProcessing);
                         }
                     } 
                     // fin-<attribute>

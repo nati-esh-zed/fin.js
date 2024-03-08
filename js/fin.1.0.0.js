@@ -184,7 +184,7 @@ const Fin = function() {
         this.clone = element.cloneNode();
         this.clone.innerHTML = element.innerHTML;
         this.varName = function(name) {
-            return name.replaceAll(/\-+([a-z])/g, 
+            return name.replaceAll(/\-+([a-zA-Z])/g, 
                 function(match, letter) { return letter.toUpperCase(); }
             );
         };
@@ -396,18 +396,21 @@ const Fin = function() {
             'use strict';
             const evaluate = options && options.evaluate;
             const updateAttributes = options && options.updateAttributes;
+            const updateSet = new Map();
             // replace variables with getter code
-            const code = input.replaceAll(
-                /(?:(')(?:\\'|.)*?'|(")(?:\\"|.)*?"|\$(\?)?([a-zA-Z_\-][\w_\-]*)((?:\.[\w_\-]+|\[.*?\])*))/gs, 
-                function(matchVP, token1, token2, returnUndefinedIfNotDefined, varName, varAccess) {
+            let code = input.replaceAll(
+                /(?:(')(?:\\'|.)*?'|(")(?:\\"|.)*?"|([\$\#])(\?)?((?:[a-zA-Z_\-][\w_\-]*)?[\w_*])((?:\.[\w_\-]+|\[.*?\])*))/gs, 
+                function(matchVP, token1, token2, type, returnUndefinedIfNotDefined, varName, varAccess) {
                     if(token1 || token2)
                         return matchVP;
+                    if(type === '#') 
+                        updateSet.set(varName, true);
                     // turn `-my-var` to `MyVar` in var name
                     varName = context.varName(varName);
                     if(context.has(varName)) {
                         let varValueCode;
                         const bUpdateAttributes = !updateAttributes ? false : true;
-                        varValueCode = 'context.get(\''+varName+'\',element,'+bUpdateAttributes+').value'+varAccess;
+                        varValueCode = 'context.get(\''+varName+'\','+(type === '$' && 'element')+','+bUpdateAttributes+').value'+varAccess;
                         return varValueCode;
                     } else if(returnUndefinedIfNotDefined) {
                         return undefined;
@@ -421,13 +424,13 @@ const Fin = function() {
             if(evaluate) {
                 try {
                     const output = context.evaluateInContext(code, element);
-                    return output;
+                    return [output, updateSet];
                 } catch(error) {
                     evalVarValueOutput = '{ERROR@{'+input+'}:'+error+'}';
                 }
-                return undefined;
+                return [undefined, updateSet];
             }
-            return code;
+            return [code, updateSet];
         };
         this.processCodeBlocks = function(input, element, options, local) {
             'use strict';
@@ -447,13 +450,18 @@ const Fin = function() {
                     else if(token3) {
                         code = code.replaceAll(/\\([}{])/gm, '$1');
                         // replace variables with values
-                        const varParsedCode = context.parseVariables(code, {
+                        const [varParsedCode, updateList] = context.parseVariables(code, {
                             evaluate: false,
                             updateAttributes: updateAttributes
                         });
                         let evalCodeBlockOutput;
                         try {
                             evalCodeBlockOutput = context.evaluateInContext(varParsedCode, element, local);
+                            // update variable references
+                            for(let entry of updateList) {
+                                const varName = entry[0];
+                                context.updateReferencingElements(varName);
+                            }
                         } catch(error) {
                             evalCodeBlockOutput = '{ERROR@{'+code+'}:'+error+'}';
                         }
@@ -530,7 +538,7 @@ const Fin = function() {
                                     }
                                     context.letAsyncWaiting = false;
                                 })();
-                            } else  {
+                            } else {
                                 console.warn('context.letAsyncWaiting ', context.letAsyncWaiting);
                             }
                         } else {
@@ -815,15 +823,19 @@ const Fin = function() {
                     } 
                     // fin-<attribute>
                     else if(finCommand.length > 0) {
-                        if(!context.attributeProcessing) {
-                            context.attributeProcessing = true;
+                        const attributeName = finCommand;
+                        if(!context.attributeProcessing)
+                            context.attributeProcessing = new Set();
+                        if(!(context.attributeProcessing.has(attributeName))) 
+                        {
+                            context.attributeProcessing.add(attributeName);
                             const output = context.processCodeBlocks(attribute.value, element, 
                                 { wholeBlock: true, updateAttributes: true },
                                 local_);
-                            element.setAttribute(finCommand, output);
-                            context.attributeProcessing = false;
+                            element.setAttribute(attributeName, output);
+                            context.attributeProcessing.delete(attributeName);
                         } else  {
-                            console.warn('context.attributeProcessing ', context.attributeProcessing);
+                            console.warn('context.attributeProcessing ', context.attributeProcessing.get(attributeName));
                         }
                     } 
                     // fin-

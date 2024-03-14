@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>fin.js</title>
-  <script src="js/fin.1.0.0.js"></script>
+  <script src="js/fin-1.0.js"></script>
   <style>
     body {
       background-color: #fefefe;
@@ -48,7 +48,7 @@
 </head>
 <body> 
   <div id="root"
-    fin-let-str=""
+    fin-let-empty
     fin-let-first-name="Adam"
     fin-let-last-name="Tsegaye"
     fin-let-user="{jsonify({firstName: $first-name, lastName: $last-name})}"
@@ -65,7 +65,7 @@
 <pre fin-escape-html="{local.i === 0}"
   fin-class="{local.i === 0 && 'prettyprint'}">
 <div id="root"
-  fin-let-str=""
+  fin-let-empty
   fin-let-first-name="Adam"
   fin-let-last-name="Tsegaye"
   fin-let-user="{jsonify({firstName: $first-name, lastName: $last-name})}"
@@ -74,7 +74,7 @@
   >
 <strong>This is the root div.</strong>
 
-$str = '{$str}'
+$empty = '{$empty}'
 $first-name = '{$first-name}'
 $last-name = '{$last-name}'
 $user = {$user}

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>fin-1.1.js</title>
+    <script src="js/fin-1.1.js"></script>
+</head>
+<body> 
+    <main id="root"
+        $let-count='{0}'
+        >
+        <p>count = {$count}</p>
+        <button $onClick="{#count++}">count: {$count}</button>
+        <button $onClick="{function() {
+            if(!this.set) {
+                this.set = true;
+                ctx.input.innerHTML = 'count: {$count}';
+                ctx.update();
+            } else {
+                #count--;
+            }
+        }()}">clickme</button>
+        <div
+            $let-json="{{
+                a: ['apple', 'ananas'], 
+                b: ['banana'], 
+                other: {m: ['mango']},
+            }}">
+            <p>
+                {$count} 
+                {$json.a[0]+'s and '+$json.b[0]+'s'}
+            </p>
+            <p><span>
+                {$count}</span> 
+                {$json.a[1]+' and '+$json.other.m[0]+'s'}
+            </p>
+            <pre>{jsonToString($json)}</pre>
+        </div>
+    </main>
+    <script>
+        const fin = new Fin(document.getElementById('root'));
+        // const rootCtx = fin.updateRoot();
+        const rootContext = fin.updateRoot();
+    </script>
+</body>
+</html>

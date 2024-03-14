@@ -1,12 +1,40 @@
 # fin.js
 
-final js library for fine execution of javascript code inside HTML attributes and bodies without the script tag.
+A fine JavaScript library for fine execution of javascript code inside HTML attributes and bodies.
 
 ## Sample
 
+### v1.1
+
+> **NOTE:** v1.1 THIS IS CURRENTLY INCOMPLETE.
+
 ```html
 <head> 
-    <script src="js/fin.1.0.0.js"></script>
+    <title>fin-1.1 demo</title>
+    <script src="js/fin-1.1.js"></script>
+</head>
+<body> 
+    <main id="root"
+        $let-name="Adam"
+        $let-message="{'Hello '+$name}"
+        $let-count="{0}"
+        >
+        <button $onClick="{#count++}">count: {$count}</button>
+        <p>{$message}</p>
+    </main>
+    <script>
+        const fin = new Fin(document.getElementById('root'));
+        const rootContext = fin.updateRoot();
+    </script>
+</body>
+```
+
+### v1.0
+
+```html
+<head> 
+    <title>fin-1.0 demo</title>
+    <script src="js/fin-1.0.js"></script>
 </head>
 <body> 
     <main id="root"
@@ -19,11 +47,6 @@ final js library for fine execution of javascript code inside HTML attributes an
             fin-onclick="{this.set('count', $count+1)}"
             ><p>count: {$count}</p></button>
         <p>{$message}</p>
-        <p>{$message += '!'}</p>
-        <p>{$message}</p>
-        <p>{this.set('message', ':: '+$message)}</p>
-        <p>{$message}</p>
-        <p>{console.log($message); fin.zeroWidthWhiteSpace}</p>
     </main>
     <script>
         const [root, rootContext] = fin.update(document.getElementById('root'));

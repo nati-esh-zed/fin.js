@@ -1,56 +1,90 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>fin.js</title>
-    <script src="js/fin.1.0.0.js"></script>
-    <style>
-        body {
-            background-color: #222;
-            color:orange;
-        }
-        
-        .table {
-            border-collapse: collapse;
-            width: 100%;
-            border: 1px solid #777;
-        }
-        .table th, 
-        .table td {
-            padding: .25rem;
-            border: 1px solid #777c;
-            /* font-size: .75rem; */
-        }
-        .table * {
-            font-size: .9rem;
-            font-weight: bold;
-            font-family: 'Courier New', Courier, monospace;
-        }
-        .table td {
-            max-width: 60vw;
-            overflow-x: auto;
-        }
-        .table td > * {
-            text-wrap: wrap;
-            word-wrap: break-word;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>fin.js</title>
+  <script src="js/fin.1.0.0.js"></script>
+  <style>
+    body {
+      background-color: #fefefe;
+      color: #353535;
+    }
+    .prettyprint {
+      border: none !important;
+    }
+    button, input {
+      padding: .5rem;
+    }
+    .table {
+      border-collapse: collapse;
+      width: 100%;
+      border: 1px solid #777;
+    }
+    .table th, 
+    .table td {
+      padding: .5rem .25rem;
+      border: 1px solid #777c;
+      /* font-size: .75rem; */
+    } 
+    .table tr:nth-of-type(odd) td {
+      background-color: #7772;
+    }
+    .table * {
+      /* font-size: small; */
+      /* font-weight: bold; */
+      font-family: monospace;
+      /* font-family: 'Courier New', Courier, monospace; */
+    }
+    .table td {
+      max-width: 60vw;
+      overflow-x: auto;
+    }
+    .table td > * {
+      text-wrap: wrap;
+      word-wrap: break-word;
+    }
+  </style>
 </head>
 <body> 
-    <div id="root"
-        fin-let-str=""
-        fin-let-first-name="Adam"
-        fin-let-last-name="Tsegaye"
-        fin-let-user="{jsonify({firstName: $first-name, lastName: $last-name})}"
-        fin-let-full-name="{$firstName+' '+$lastName}"
-        fin-let--my-var="My Value"
-        >
-        <table class="table">
-            <thead>
-                <tr><th>CODE</th><th>OUTPUT</th></tr>
-            </thead>
-            <tbody>
+  <div id="root"
+    fin-let-str=""
+    fin-let-first-name="Adam"
+    fin-let-last-name="Tsegaye"
+    fin-let-user="{jsonify({firstName: $first-name, lastName: $last-name})}"
+    fin-let-full-name="{$firstName+' '+$lastName}"
+    fin-let--my-var="My Value"
+    >
+    <table class="table">
+      <thead>
+        <tr><th>CODE</th><th>OUTPUT</th></tr>
+      </thead>
+      <tbody>
+<tr fin-for="{let i = 0, tag = 'td'; i < 2; i++}">
+  <td>
+<pre fin-escape-html="{local.i === 0}"
+  fin-class="{local.i === 0 && 'prettyprint'}">
+<div id="root"
+  fin-let-str=""
+  fin-let-first-name="Adam"
+  fin-let-last-name="Tsegaye"
+  fin-let-user="{jsonify({firstName: $first-name, lastName: $last-name})}"
+  fin-let-full-name="{$firstName+' '+$lastName}"
+  fin-let--my-var="My Value"
+  >
+<strong>This is the root div.</strong>
+
+$str = '{$str}'
+$first-name = '{$first-name}'
+$last-name = '{$last-name}'
+$user = {$user}
+$full-name = '{$full-name}'
+$-my-var = '{$-my-var}'
+</div>
+</pre>
+  </td>
+</tr>
+
 <tr><td>\{$firstName}</td><td>{$firstName}</td></tr>
 <tr><td>\{$last-name}</td><td>{$last-name}</td></tr>
 <tr><td>\{$fullName}</td><td>{$fullName}</td></tr>
@@ -74,72 +108,126 @@
 <tr><td>*\{'commented out'}</td><td>*{'commented out'}</td></tr>
 <tr><td>\*\{'not commented out'}</td><td>\*{'not commented out'}</td></tr>
 <tr><td>\{'hello'} "w{elc}ome"</td><td>{'hello'} "w{elc}ome"</td></tr>
-<tr fin-for="{local.i = 0; local.i < 2; local.i++}">
-    <td>
-<pre fin-escape-html="{local.i === 0}"><div fin-html="<p>hello {$fullName}!</p>"></div></pre>
-    </td>
+
+<tr fin-for="{let i = 0, tag = 'td'; i < 2; i++}">
+  <td>
+<pre fin-escape-html="{local.i === 0}"
+  fin-class="{local.i === 0 && 'prettyprint'}">
+<div fin-html="hello {$fullName}!">
+</div>
+</pre>
+  </td>
 </tr>
 
-<tr fin-for="{local.i = 0; local.i < 2; local.i++}">
-    <td>
-<pre fin-escape-html="{local.i === 0}"><button  fin-let-count="{0}" fin-onclick="{this.set('count', $count+1)}"><p>count: {$count}</p></button></pre>
-    </td>
+<tr fin-for="{let i = 0, tag = 'td'; i < 2; i++}">
+  <td>
+<pre fin-escape-html="{local.i === 0}"
+  fin-class="{local.i === 0 && 'prettyprint'}">
+<button 
+  fin-let-count="{0}" 
+  fin-onclick="{#count++}"
+>count: {$count}</button>
+</pre>
+  </td>
 </tr>
 
-<tr fin-for="{local.i = 0; local.i < 2; local.i++}">
-    <td>
-<pre fin-escape-html="{local.i === 0}"><p fin-let-fruits="{['Apple', 'Mango']}">{$fruits[0]+' and '+$fruits[1]}</p></pre>
-    </td>
+<tr fin-for="{let i = 0, tag = 'td'; i < 2; i++}">
+  <td>
+<pre fin-escape-html="{local.i === 0}"
+  fin-class="{local.i === 0 && 'prettyprint'}">
+<button 
+  fin-let-count="{0}" 
+  fin-onclick="{this.set('count', $count+1)}"
+>count: {$count}</button>
+</pre>
+  </td>
 </tr>
 
-<tr fin-for="{local.i = 0; local.i < 2; local.i++}">
-    <td><div fin-let-async-frag="{fetchText('frag.html', 2000)}" 
-        fin-html="{$frag || '<p>loading...</p>'}"
-    ></div></pre>
-    </td>
+<tr fin-for="{let i = 0, tag = 'td'; i < 2; i++}">
+  <td>
+<pre fin-escape-html="{local.i === 0}"
+  fin-class="{local.i === 0 && 'prettyprint'}">
+<p fin-let-fruits="{['Apple', 'Mango']}">
+  {$fruits[0]+' and '+$fruits[1]}
+</p>
+</pre>
+  </td>
 </tr>
 
-<tr fin-for="{local.i = 0; local.i < 2; local.i++}">
-    <td>
-<pre fin-escape-html="{local.i === 0}"><div 
-        fin-let-tag="input"
-        fin-let-type="text"
-        fin-ondblclick="{this.set('type', $type === 'text' ? 'password' : 'text')}"
-    >
-    <div 
-        fin-html="<{$tag} 
-            fin-type='{$type}' 
-            value='double click me' 
-         />"
-        >
-    </div>
-</div></pre>
-    </td>
+<tr fin-for="{let i = 0, tag = 'td'; i < 2; i++}">
+  <td>
+<pre fin-escape-html="{local.i === 0}"
+  fin-class="{local.i === 0 && 'prettyprint'}">
+<div 
+  fin-let-async-frag="{fetchText('frag.html', 2000)}" 
+  fin-html="{$frag || 'loading...'}"
+>
+</div>
+</pre>
+  </td>
 </tr>
 
-<tr fin-for="{local.i = 0; local.i < 2; local.i++}">
-    <td fin-escape-html="{local.i === 0}">
-<pre fin-let-async-sample="{fetchJson('data/sample.json')}">{$sample || 'loading...'}</pre>
-    </td>
+<tr fin-for="{let i = 0, tag = 'td'; i < 2; i++}">
+  <td>
+<pre fin-escape-html="{local.i === 0}"
+  fin-class="{local.i === 0 && 'prettyprint'}">
+<div 
+  fin-let-tag="input"
+  fin-let-type="text"
+  fin-ondblclick="{context.set('type', $type === 'text' ? 'password' : 'text')}"
+>
+<div 
+  fin-html="<{$tag} 
+    fin-type='{$type}' 
+    value='double click me' 
+    />"
+  >
+  </div>
+</div>
+</pre>
+  </td>
 </tr>
 
-<tr fin-for="{local.i = 0; local.i < 2; local.i++}">
-    <td fin-escape-html="{local.i === 0}">
-<pre fin-escape-html><p fin-escape>Hello {$full-name}</p></pre>
-    </td>
+<tr fin-for="{let i = 0, tag = 'td'; i < 2; i++}">
+  <td>
+<pre fin-escape-html="{local.i === 0}" 
+  fin-class="{local.i === 0 && 'prettyprint'}">
+<div fin-let-async-sample="{fetchJson('data/sample.json', 300)}">
+  {$sample || 'loading...'}
+</div>
+</pre>
+  </td>
 </tr>
 
-<tr fin-for="{local.i = 0; local.i < 2; local.i++}">
-    <td fin-escape-html="{local.i === 0}">
-<pre fin-escape><p fin-let-count="{3}">Counting {$count} times...</p></pre>
-    </td>
+<tr fin-for="{let i = 0, tag = 'td'; i < 2; i++}">
+  <td>
+<pre fin-escape-html="{local.i === 0}"
+  fin-class="{local.i === 0 && 'prettyprint'}">
+<div fin-escape-html>
+  <p>Hello {$full-name}</p>
+</div>
+</pre>
+  </td>
 </tr>
-            </tbody>
-        </table>
-    </div>
-    <script>
-        const root = document.getElementById('root');
-        fin.update(root);
-    </script>
+
+<tr fin-for="{let i = 0, tag = 'td'; i < 2; i++}">
+  <td>
+<pre fin-escape-html="{local.i === 0}"
+  fin-class="{local.i === 0 && 'prettyprint'}">
+<div fin-escape>
+  <p fin-let-count="{3}">Counting {$count} times...</p>
+</div>
+</pre>
+  </td>
+</tr>
+      </tbody>
+    </table>
+  </div>
+  <script>
+    const root = document.getElementById('root');
+    fin.update(root);
+  </script>
+  <!--  -->
+  <script src="https://cdn.jsdelivr.net/gh/google/code-prettify@master/loader/run_prettify.js"></script>
 </body>
 </html>

@@ -794,11 +794,26 @@ const Fin = function() {
                             escapeHtml = true;
                             context.escapeHtml = true;
                             const input  = element.innerHTML;
-                            const output = input;
-                            const pre = document.createElement('pre');
-                            pre.textContent = output;
-                            element.replaceChildren(pre);
-                            fin.update(element, false, context.parentContext, local_);
+                            // format html attributes
+                            const output = input
+                            .replaceAll(/\n?(\s*)(<\w+)\s+((?:(['"])(?:\\\4|.)*?\4|.)*?)\s*(\/?>)/gs, 
+                                function(_m_, indent, start, attributes, stringToken4, end) {
+                                    const match = attributes.match(/\s*([\w\-_]+(?:\=(?:(['"])\{(?:\\\2|.)*?\}\2|(['"])(?:\\\3|.)*?\3|\S+)|\b))/gs);
+                                        attributes = attributes.replaceAll(/\s*([\w\-_]+(?:=(?:(['"])\{(?:\\\2|.)*?\}\2|(['"])(?:\\\3|.)*?\3|\S+)|\b))/gs, 
+                                            function(_m1_, attribute) {
+                                                if(attribute.indexOf('=""') !== -1)
+                                                    attribute = attribute.substring(0, attribute.length-3);
+                                                if(match.length > 1)
+                                                    return '\n'+indent+'  '+attribute;
+                                                else
+                                                    return ' '+attribute;
+                                            }
+                                        );
+                                    return '\n'+indent+start+attributes+
+                                        indent+(match.length > 1 ? '\n  ' : '')+end;
+                                }
+                            );
+                            element.textContent = output;
                             context.htmlProcessing = false;
                         }
                     } 

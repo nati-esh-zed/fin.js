@@ -13,9 +13,16 @@ const Fin = function(rootElement) {
 	Fin.FIN_ID_TOKEN = Fin.FIN_ATTRIB_PREFIX+'id';
 	Fin.LET_TOKEN    = Fin.FIN_ATTRIB_PREFIX+'let-';
 	Fin.ON_TOKEN     = Fin.FIN_ATTRIB_PREFIX+'on';
+	Fin.VAR_PREFIX_TOKEN              = '$';
+	Fin.CODE_BLOCK_ESCAPE_TOKEN       = '@';
+	Fin.CODE_BLOCK_RETURNING_TOKEN    = '#';
+	Fin.CODE_BLOCK_COMMENT_TOKEN      = '*';
+	Fin.CODE_BLOCK_INTERMEDIATE_TOKEN = '%';
+	Fin.VAR_UNDEFINED_TOKEN           = '?';
+	Fin.VAR_UPDATE_TOKEN              = ':';
 	Fin.REGEXP = {
-		BLOCK: /([^\\]|^)\{(?:(?:(.+)\()((?:\\[}{]|.)*?)(?:\)\2)|((?:\\[}{]|.)*?))\}/gs,
-		VARIABLES: /(?:(')(?:\\'|.)*?'|(")(?:\\"|.)*?"|([\$\#])(\?)?((?:[a-zA-Z_\-][\w_\-]*)?[\w_]))/g
+		BLOCK: /\{([#\@\*\%]?)((?:\\#[}{]|.)*?)\1\}/gs,
+		VARIABLES: /(?:(')(?:\\'|.)*?'|(")(?:\\"|.)*?"|\$([\:\?])?((?:[a-zA-Z_\-][\w_\-]*)?[\w_]))/gs
 	};
 	Fin.IdTop = 1;
 	const Variable = function(name, value) {
@@ -60,21 +67,36 @@ const Fin = function(rootElement) {
 		this.output[Fin.FIN_ID_TOKEN] = this.id;
 		this.input.setAttribute('fid', this.id);
 		this.output.setAttribute('fid', this.id);
-		context.input.evaluateInside = function(__code__, __withVars__) {
-			const varDeclareCode = __withVars__ 
-				? Object.keys(__withVars__).map(function(varName) {
-					return 'let '+varName+'=__withVars__[\''+varName+'\'];';
-				}).join('') 
-				: ''
-			;
+		context.evaluateInsideImpl = function(__functionCode__, __varParamsValueCode__, __withVars__) {
 			let __result__ = undefined;
-			const __completeCode__ = varDeclareCode+ 
-				'__result__='+__code__+';';
+			const __completeCode__ = '__result__='+__functionCode__+__varParamsValueCode__;
 			eval(__completeCode__);
 			return __result__;
 		};
-		context.evaluateInsideElement = function(code, withVars) {
-			return context.input.evaluateInside(code, withVars);
+		context.evaluateInside = function(__code__, __withVars__, __isExpression__) {
+			const varNames = __withVars__ ? Object.keys(__withVars__) : undefined;
+			if(!(varNames && varNames.length > 0) && __isExpression__) {
+				const __expressionCode__ = '('+__code__+')';
+				const __result__ = this.evaluateInsideImpl(__expressionCode__, '', __withVars__);
+				return __result__;
+			} else {
+				const varParamsCode      = varNames ? varNames.join(',') : '';
+				const varParamsValueCode = '('+(varNames
+					? varNames.map(function(varName) {
+						return '__withVars__[\''+varName+'\']';
+					}).join(',') 
+					: ''
+				)+')';
+				const returnCode = __isExpression__
+					? 'return ('
+					: '';
+				const endParen = __isExpression__ ? ')' : '';
+				const __functionCode__ = '(function('+varParamsCode+'){'+ 
+					returnCode+__code__+endParen+';'+
+					'})';
+				const __result__ = this.evaluateInsideImpl(__functionCode__, varParamsValueCode, __withVars__);
+				return __result__;
+			}
 		};
 		const prepareForUpdate = function() {
 			this.output.replaceChildren();
@@ -103,6 +125,12 @@ const Fin = function(rootElement) {
 					? this.variables.get(varName)
 					: this.parent && this.parent.getVarQuiet(varName);
 			return variable;
+		};
+		const getVarAddRef = function(varName) {
+			return this.getVar(varName, {addReference: true});
+		};
+		const getVarNoRef = function(varName) {
+			return this.getVar(varName, {addReference: false});
 		};
 		const getVar = function(varName, options) {
 			const addReference = !!options && !!options.addReference;
@@ -144,94 +172,137 @@ const Fin = function(rootElement) {
 				}
 			}
 		};
-		const parseVariableReferences = function(code) {
+		const parseVariableReferences = function(code, addReference, noError) {
 			const updateSet = new Map();
 			const output = code.replaceAll(
 				Fin.REGEXP.VARIABLES, 
-				function(matchVP, token1, token2, type, returnUndefinedIfNotDefined, varName) {
+				function(matchVP, token1, token2, opToken, varName) {
 					if(token1 || token2)
 						return matchVP;
-					if(type === '#') 
+					if(opToken === Fin.VAR_UPDATE_TOKEN) 
 						updateSet.set(varName, true);
-					varName = validName(varName ? varName : varName2);
-					const varDefined = context.hasVar(varName);
-					if(!varDefined) {
-						if(returnUndefinedIfNotDefined)
+					validVarName = validName(varName ? varName : varName2);
+					const variable = context.getVarQuiet(varName);
+					if(!variable) {
+						if(opToken === Fin.VAR_UNDEFINED_TOKEN)
 							return undefined;
-						else {
-							const codePos = arguments[6];
-							const code    = arguments[7];
+						else if (!noError) {
+							const codePos = arguments[arguments.length-2];
+							const code    = arguments[arguments.length-1];
 							const lastNewLineIndex1 = Math.max(0, code.lastIndexOf('\n', codePos));
 							const lastNewLineIndex2 = Math.max(0, code.lastIndexOf('\n', lastNewLineIndex1-1));
 							const lastNewLineIndex3 = Math.max(0, code.lastIndexOf('\n', lastNewLineIndex2-1));
 							const lastNewLineIndex = lastNewLineIndex3;
 							const nextLineIndex = Math.max(code.length, code.indexOf('\n', codePos));
-							console.warn({
-								error: '$'+(varName ? varName : '('+varName2+')')+' not defined!',
+							const error = '`'+Fin.VAR_PREFIX_TOKEN+(opToken||'')+varName+'` '+varName+' not defined!';
+							console.error({
+								error: error,
 								context: context,
 							});
 							const codePiece = code.substring(lastNewLineIndex, lastNewLineIndex1+1)+
 								'>'+
 								code.substring(lastNewLineIndex1+1, nextLineIndex);
 							console.warn(codePiece);
+							return '"{! '+error+' !}"';
+						}
+					} else {
+						addReference = !!addReference;
+						if(opToken && opToken === Fin.VAR_UPDATE_TOKEN)
+							addReference = false;
+						else if(!context.initialized)
+							addReference = true;
+						else if(variable)
+							addReference = !variable.hasReference(context, context.activeNode);
+						if(addReference) {
+							const variableCode = 'context.getVarAddRef(\''+validVarName+'\').value';
+							return variableCode;
+						} else {
+							const variableCode = 'context.getVarNoRef(\''+validVarName+'\').value';
+							return variableCode;
 						}
 					}
-					const variable = context.getVarQuiet(varName);
-					const addReference = (!context.initialized && type !== '#') || 
-						!(variable && variable.hasReference(context, context.activeNode));
-					let optionsStr = addReference ? ',{addReference: '+addReference+'}' : '';
-					return varDefined 
-						? '(context.getVar(\''+varName+'\''+
-							optionsStr+
-							').value)'
-						: '\'{$'+varName+' not defined!}\'';
 				}
 			);
 			return [output, updateSet];
 		};
 		const extractVarInfo = function(inputText) {
-			const varNames = new Map();
+			const varMap = new Map();
 			inputText.replaceAll(Fin.REGEXP.BLOCK, 
-				function(_m_, ch, boundaryToken, codeBlock1, codeBlock2) {
-					const codeBlock = codeBlock1 || codeBlock2;
+				function(_m_, blockTypeToken, codeBlock) {
 					codeBlock.replaceAll(Fin.REGEXP.VARIABLES, 
-						function(matchVP, token1, token2, type, returnUndefinedIfNotDefined, varName) {
-							varNames.set(varName, varNames.get(varName) ? varNames.get(varName)+1 : 1);
+						function(matchVP, token1, token2, opToken, varName) {
+							const referenceCount = varMap.has(varName) 
+								? varMap.get(varName)+1 : 1;
+							varMap.set(varName, {
+								referenceCount: referenceCount,
+								opToken: opToken
+							});
 							return undefined;
 						}
 					);
 					return undefined;
 				}
 			);
-			return varNames;
+			return varMap;
 		};
 		const processText = function(inputText, withVars) {
 			const outputText = inputText.replaceAll(Fin.REGEXP.BLOCK, 
-				function(_m_, ch, boundaryToken, codeBlock1, codeBlock2) {
-					const codeBlock = codeBlock1 || codeBlock2;
-					const [intermediateText, updateSet] 
-						= context.parseVariableReferences(codeBlock);
-					let result = undefined;
-					result = context.input.evaluateInside(intermediateText, withVars);
-					// update variable references
-					for(let entry of updateSet) {
-						const varName  = entry[0];
-						const variable = context.getVarQuiet(varName);
-						context.updateReferences(variable);
+				function(_m_, blockTypeToken, codeBlock) {
+					if(blockTypeToken === Fin.CODE_BLOCK_COMMENT_TOKEN) {
+						return '';
+					} else if(blockTypeToken === Fin.CODE_BLOCK_ESCAPE_TOKEN) {
+						return '{'+codeBlock+'}';
+					} else {
+						const isIntermediate = blockTypeToken === Fin.CODE_BLOCK_INTERMEDIATE_TOKEN;
+						const [intermediateText_, updateSet] 
+							= context.parseVariableReferences(codeBlock, null, isIntermediate);
+						const intermediateText = intermediateText_.replaceAll('\\z', '');
+						let result = undefined;
+						if(isIntermediate)
+							result = '{'+intermediateText+'}';
+						else
+							result = context.evaluateInside(intermediateText, withVars, 
+								blockTypeToken !== Fin.CODE_BLOCK_RETURNING_TOKEN);
+						// update variable references
+						for(let entry of updateSet) {
+							const varName  = entry[0];
+							const variable = context.getVarQuiet(varName);
+							context.updateReferences(variable);
+						}
+						return result;
 					}
-					return ch+result;
 				}
 			);
 			return outputText;
 		};
 		const processValue = function(inputText, withVars) {
-			const isCodeBlock = inputText.charAt(0) === '{';
+			inputText = inputText.trim();
 			let result = undefined;
+			if(inputText.indexOf('{'+Fin.CODE_BLOCK_COMMENT_TOKEN) === 0)
+				return result;
+			const hashedBlockIndex = 
+					   inputText.indexOf('{'+Fin.CODE_BLOCK_RETURNING_TOKEN) === 0
+					|| inputText.indexOf('{'+Fin.CODE_BLOCK_INTERMEDIATE_TOKEN) === 0
+				? 0 : -1;
+			const hashedBlockLastIndex = 
+					   inputText.lastIndexOf(Fin.CODE_BLOCK_RETURNING_TOKEN+'}') === inputText.length-2
+					|| inputText.lastIndexOf(Fin.CODE_BLOCK_INTERMEDIATE_TOKEN+'}') === inputText.length-2
+				? inputText.length-2 : inputText.length;
+			const isIntermediate = inputText.indexOf('{'+Fin.CODE_BLOCK_INTERMEDIATE_TOKEN) === 0;
+			const isCodeBlock = inputText.charAt(0) === '{'
+				|| hashedBlockIndex === 0;
 			if(isCodeBlock) {
-				const codeBlock = inputText.substring(1, inputText.length-1);
-				const [intermediateText, updateSet] 
-					= context.parseVariableReferences(codeBlock);
-				result = context.input.evaluateInside(intermediateText, withVars);
+				const startIndex = hashedBlockIndex === 0 ? 2 : 1;
+				const endIndex   = hashedBlockLastIndex === inputText.length-2 
+					? inputText.length-2 : inputText.length-1;
+				const codeBlock = inputText.substring(startIndex, endIndex);
+				const [intermediateText_, updateSet] = 
+					context.parseVariableReferences(codeBlock, null, isIntermediate);
+				const intermediateText = intermediateText_.replaceAll('\\z', '');
+				if(isIntermediate) 
+					result = intermediateText;
+				else
+					result = context.evaluateInside(intermediateText, withVars, hashedBlockIndex !== 0);
 				// update variable references
 				for(let entry of updateSet) {
 					const varName  = entry[0];
@@ -250,6 +321,8 @@ const Fin = function(rootElement) {
 		this.validName        = validName;
 		this.setVar           = setVar;
 		this.getVarQuiet      = getVarQuiet;
+		this.getVarAddRef     = getVarAddRef;
+		this.getVarNoRef      = getVarNoRef;
 		this.getVar           = getVar;
 		this.hasVar           = hasVar;
 		this.removeVar        = removeVar;
@@ -290,26 +363,28 @@ const Fin = function(rootElement) {
 			throw new Error('context must be a valid Fin.Context object');
 		const element = context.element;
 		const processAttribute = function(attribute) {
-			let procecssed = false;
+			let processed = false;
 			context.activeAttribute = attribute;
 			if(attribute.name.indexOf(Fin.LET_TOKEN) === 0) {
 				const varName  = attribute.name.substring(Fin.LET_TOKEN.length);
-				const varValue = context.processValue(attribute.value, true);
+				const varValue = context.processValue(attribute.value);
 				context.setVar(varName, varValue);
-				procecssed = true;
+				processed = true;
 			} else if(attribute.name.indexOf(Fin.ON_TOKEN) === 0) {
 				const eventName = attribute.name.substring(Fin.ON_TOKEN.length);
 				const eventCodeBlock = attribute.value;
-				let eventHandler;
-				eval('eventHandler = function(event) { const __eventCode__ = eventCodeBlock; context.processValue(__eventCode__, {event: event}); }');
+				let eventHandler = function(event) { 
+					const result = context.processValue(eventCodeBlock, {event: event}); 
+					return result;
+				};
 				context.output.addEventListener(eventName, eventHandler);
-				procecssed = true;
+				processed = true;
 			}
 			context.activeAttribute = undefined;
-			return procecssed;
+			return processed;
 		};
 		const processNode = function(node) {
-			let procecssed = false;
+			let processed = false;
 			context.activeNode = node;
 			if(node.nodeType === Fin.NODE_TYPE_TEXT) {
 				const nodeInfo = context.nodes.get(node);
@@ -331,7 +406,7 @@ const Fin = function(rootElement) {
 							outputNode: outputNode 
 						};
 						context.nodes.set(node, newNodeInfo);
-						procecssed = true;
+						processed = true;
 					}
 				}
 			} else if(node.nodeType === Fin.NODE_TYPE_COMMENT) {
@@ -342,12 +417,12 @@ const Fin = function(rootElement) {
 				const outputNode  = nodeContext.output;
 				fin.update(nodeContext);
 				context.output.appendChild(outputNode);
-				procecssed = true;
+				processed = true;
 			} else if(node.nodeType === Fin.NODE_TYPE_ATTRIBUTE) {
-				procecssed = processAttribute(node);
+				processed = processAttribute(node);
 			}
 			context.activeNode = undefined;
-			return procecssed;
+			return processed;
 		};
 		if(targetNode) {
 			if(targetNode !== context.activeNode) {

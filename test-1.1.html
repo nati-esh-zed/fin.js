@@ -8,40 +8,281 @@
 </head>
 <body> 
     <main id="root"
-        $let-count='{0}'
+        $let-count="{0}"
         >
-        <p>count = {$count}</p>
-        <button $onClick="{#count++}">count: {$count}</button>
-        <button $onClick="{function() {
-            if(!this.set) {
-                this.set = true;
-                ctx.input.innerHTML = 'count: {$count}';
-                ctx.update();
-            } else {
-                #count--;
-            }
-        }()}">clickme</button>
-        <div
-            $let-json="{{
-                a: ['apple', 'ananas'], 
-                b: ['banana'], 
-                other: {m: ['mango']},
-            }}">
-            <p>
-                {$count} 
-                {$json.a[0]+'s and '+$json.b[0]+'s'}
-            </p>
-            <p><span>
-                {$count}</span> 
-                {$json.a[1]+' and '+$json.other.m[0]+'s'}
-            </p>
-            <pre>{jsonToString($json)}</pre>
+        <pre><code>&lt;main id="root" $let-count="{@0@}"&gt;...</code></pre>
+        <table class="table-1">
+            <tr>
+                <th>CODE</th>
+                <th>OUTPUT</th>
+                <th>INTERMEDIATE CODE</th>
+            </tr>
+            <tr>
+                <td><pre><code>{@*'this is a comment'*@}</code></pre></td>
+                <td><pre><code>{*'this is a comment'*}</code></pre></td>
+                <td><pre><code>{%*'this is a comment'*%}</code></pre></td>
+            </tr>
+            <tr>
+                <td><pre><code>{@#return 'hello from returning code block'#@}</code></pre></td>
+                <td><pre><code>{#return 'hello from returning code block'#}</code></pre></td>
+                <td><pre><code>{%#return 'hello from returning code block'#%}</code></pre></td>
+            </tr>
+            <tr>
+                <td><pre><code>{@'hello from expression code block'@}</code></pre></td>
+                <td><pre><code>{'hello from expression code block'}</code></pre></td>
+                <td><pre><code>{%'hello from expression code block'%}</code></pre></td>
+            </tr>
+            <tr>
+                <td><pre><code>{@'hello', 'world'@}</code></pre></td>
+                <td><pre><code>{'hello', 'world'}</code></pre></td>
+                <td><pre><code>{%'hello', 'world'%}</code></pre></td>
+            </tr>
+            <tr>
+                <td>
+<pre><code>{@#return 'Anything inside \'{...}\' or \'{#... return ...#\z}\' \n'+
+    'will be evaluated and the value returned.\n'+
+    "Please use \"{#...return ...#\z}\" if there are \n"+
+    'going to be braces `{}` inside the block.'#@}</code></pre>
+                </td>
+                <td>
+<pre><code>{#return 'Anything inside \'{...}\' or \'{#... return ...#\z}\' \n'+
+    'will be evaluated and the value returned.\n'+
+    "Please use \"{#...return ...#\z}\" if there are \n"+
+    'going to be braces `{}` inside the block.'#}</code></pre>
+                </td>
+                <td>
+<pre><code>{%#return 'Anything inside \'{...}\' or \'{#... return ...#\z}\' \n'+
+    'will be evaluated and the value returned.\n'+
+    "Please use \"{#...return ...#\z}\" if there are \n"+
+    'going to be braces `{}` inside the block.'#%}</code></pre>
+                </td>
+            </tr>
+            <tr>
+                <td><pre><code>{@$count@}</code></pre></td>
+                <td><pre><code>{$count}</code></pre></td>
+                <td><pre><code>{%$count%}</code></pre></td>
+            </tr>
+            <tr>
+                <td><pre><code>{@$?count@}</code></pre></td>
+                <td><pre><code>{$?count}</code></pre></td>
+                <td><pre><code>{%$?count%}</code></pre></td>
+            </tr>
+            <tr>
+                <td><pre><code>{@$:count@}</code></pre></td>
+                <td><pre><code>{$:count}</code></pre></td>
+                <td><pre><code>{%$:count%}</code></pre></td>
+            </tr>
+            <tr>
+                <td><pre><code>{@$double-count@}</code></pre></td>
+                <td><pre><code>{$double-count}</code></pre></td>
+                <td><pre><code>{%$double-count%}</code></pre></td>
+            </tr>
+            <tr>
+                <td><pre><code>{@$?double-count@}</code></pre></td>
+                <td><pre><code>{$?double-count}</code></pre></td>
+                <td><pre><code>{%$?double-count%}</code></pre></td>
+            </tr>
+            <tr>
+                <td>
+<pre><code>&lt;button $onClick="{@$:count++@}"
+&gt;
+    + count: {@$count@}
+&lt;/button&gt;</code></pre>
+                </td>
+                <td>
+                    <div>
+                        <button $onClick="{$:count++}">+ count: {$count}</button>
+                    </div>
+                </td>
+                <td>
+<pre><code>&lt;button $onClick="{%$:count++%}"
+&gt;
+    + count: {%$count%}
+&lt;/button&gt;</code></pre>
+                </td>
+            </tr>
+            <tr>
+                <td>
+<pre><code>&lt;button $onClick="{@#
+    console.log([ctx, context, arguments]);
+    if(!this.set) {
+        this.set = true;
+        ctx.input.innerHTML = '- count: {$count}';
+        ctx.update();
+    } else {
+        $:count--;
+    }
+#@}"&gt;clickme&lt;/button&gt;</code></pre>
+                </td>
+                <td>
+                    <div>
+                        <button $onClick="{#
+                            console.log([ctx, context, arguments]);
+                            if(!this.set) {
+                                this.set = true;
+                                ctx.input.innerHTML = '- count: {$count}';
+                                ctx.update();
+                            } else {
+                                $:count--;
+                            }
+                        #}">clickme</button>
+                    </div>
+                </td>
+                <td>
+<pre><code>&lt;button $onClick="{%#
+    console.log([ctx, context, arguments]);
+    if(!this.set) {
+        this.set = true;
+        ctx.input.innerHTML = '- count: {$count}';
+        ctx.update();
+    } else {
+        $:count--;
+    }
+#%}"&gt;clickme&lt;/button&gt;</code></pre>
+                </td>
+            </tr>
+        </table>
+        
+        <pre><code>&lt;div $let-double-count="{@$count*2@}"&gt;...</code></pre>
+        <div $let-double-count="{$count*2}">
+            <table class="table-1">
+                <tr>
+                    <th>CODE</th>
+                    <th>OUTPUT</th>
+                    <th>INTERMEDIATE CODE</th>
+                </tr>
+                <tr>
+                    <td><pre><code>{@$double-count@}</code></pre></td>
+                    <td><pre><code>{$double-count}</code></pre></td>
+                    <td><pre><code>{%$double-count%}</code></pre></td>
+                </tr>
+                <tr>
+                    <td>
+<pre><code>
+&lt;div
+    $let-json="{@{
+        a: ['apple', 'ananas'], 
+        b: ['banana'], 
+        m: ['mango'],
+    }@}"&gt;
+    &lt;pre&gt;&lt;code&gt;{@jsonToString($json)@}&lt;/code&gt;&lt;/pre&gt;
+    &lt;p&gt;{@$count@} {@$json.a[0]+'s'@}&lt;/p&gt;
+    &lt;p&gt;{@$double-count@} {@$json.a[1]+' and '+$json.m[0]+'s'@}&lt;/p&gt;
+&lt;/div&gt;
+</code></pre>
+                    </td>
+                    <td>
+                        <div
+                            $let-json="{{
+                                a: ['apple', 'ananas'], 
+                                b: ['banana'], 
+                                m: ['mango'],
+                            }}">
+                            <pre><code>{jsonToString($json)}</code></pre>
+                            <p>{$count} {$json.a[0]+'s'}</p>
+                            <p>{$double-count} {$json.a[1]+' and '+$json.m[0]+'s'}</p>
+                        </div>
+                    </td>
+                    <td>
+                        <div $let-json="{{
+                            a: ['apple', 'ananas'], 
+                            b: ['banana'], 
+                            m: ['mango'],
+                        }}">
+<pre><code>
+&lt;div
+    $let-json="{%{
+        a: ['apple', 'ananas'], 
+        b: ['banana'], 
+        m: ['mango'],
+    }%}"&gt;
+    &lt;pre&gt;&lt;code&gt;{%jsonToString($json)%}&lt;/code&gt;&lt;/pre&gt;
+    &lt;p&gt;{%$count%} {%$json.a[0]+'s'%}&lt;/p&gt;
+    &lt;p&gt;{%$double-count%} {%$json.a[1]+' and '+$json.m[0]+'s'%}&lt;/p&gt;
+&lt;/div&gt;
+</code></pre>
+                        </div>
+                    </td>
+                </tr>
+            </table>
         </div>
     </main>
     <script>
         const fin = new Fin(document.getElementById('root'));
         // const rootCtx = fin.updateRoot();
         const rootContext = fin.updateRoot();
+    </script>
+    <style>
+        :root {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 
+                'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 
+                'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+        button {
+            padding: .5rem;
+        }
+        pre {
+            display: block;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            padding: .5rem 0rem;
+            background-color: #80757030;
+            border: 1px solid #777;
+        }
+        .table-1 pre {
+            border: none;
+            background-color: transparent;
+            overflow-x: auto;
+        }
+        pre > code {
+            display: block;
+            color: #333;
+            padding: .5rem .5rem;
+            white-space: pre;
+            overflow-x: auto;
+        }
+        code.wrap {
+            white-space: wrap;
+        } 
+        .table-1 {
+            border-collapse: collapse;
+            padding: 0;
+            margin: .25rem 0;
+            width: 100%;
+            max-width: 100vw;
+        }
+        .table-1 tr {
+            padding: 0;
+            margin: 0;
+            width: 100%;
+            max-width: 100%;
+        }
+        .table-1 th, td {
+            padding: 0;
+            margin: 0;
+            border: 1px solid #777;
+        }
+        .table-1 tr:nth-of-type(odd) {
+            background-color: #80757030;
+        }
+        .table-1 tr:nth-of-type(even) {
+            background-color: #80757015;
+        }
+        .table-1 td div {
+            padding: .5rem;
+        }
+        .prettyprint {
+            background-color: transparent;
+            border: none;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/gh/google/code-prettify@master/loader/run_prettify.js"></script>
+    <script>
+        document.querySelectorAll('.table-1 code')
+        .forEach(function(e) {
+            e.classList.add('prettyprint');
+        })
     </script>
 </body>
 </html>

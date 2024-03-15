@@ -19,10 +19,10 @@ const Fin = function(rootElement) {
 	};
 	Fin.IdTop = 1;
 	const Variable = function(name, value) {
-		this.name = name;
-		this.value = value;
-		this.referenceList = new Map();
-		this.toString = function() {
+		this.name       = name;
+		this.value      = value;
+		this.references = new Map();
+		this.toString   = function() {
 			return '{ '+
 				'name: "'+this.name+'", '+
 				'value: '+(typeof this.value === 'string'
@@ -106,10 +106,10 @@ const Fin = function(rootElement) {
 			// add context to references list
 			if(variable && targetNode && !noReference) {
 				const referencingContext = context; 
-				let references = variable.referenceList.get(referencingContext) 
+				let references = variable.references.get(referencingContext) 
 				if(!references) {
 					references = [];
-					variable.referenceList.set(referencingContext, references);
+					variable.references.set(referencingContext, references);
 				}
 				if(references.indexOf(targetNode) === -1)
 					references.push(targetNode);
@@ -127,7 +127,7 @@ const Fin = function(rootElement) {
 		};
 		const updateReferences = function(variable) {
 			if(variable) {
-				for(let referencingContext of variable.referenceList) {
+				for(let referencingContext of variable.references) {
 					const references = referencingContext[1];
 					for(let referencingNode of references) {
 						fin.update(referencingContext[0], referencingNode);

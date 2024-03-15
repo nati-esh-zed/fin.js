@@ -11,7 +11,7 @@ const ComponentStore = function(componentsDefinitionRootElement, componentClient
   this.components = new Map();
   /*----------------------------------------------*/
   this.get = function(componentName) {
-    const component = componentStore.get(componentName);
+    const component = componentStore.components.get(componentName);
     return component;
   };
   this.removeDefinitionElement = function() {
@@ -57,6 +57,14 @@ const ComponentStore = function(componentsDefinitionRootElement, componentClient
       }
     );
   };
+  this.isTagKnown = function(tagName) {
+    try {
+      return document.createElement(tagName)
+        .constructor.name !== 'HTMLUnknownElement';
+    } catch(e) {
+      return false;
+    }
+  };
   /*----------------------------------------------*/
   // process and store components. Also hide them from the DOM.
   {
@@ -64,29 +72,46 @@ const ComponentStore = function(componentsDefinitionRootElement, componentClient
     componentsDefinitionRootElement.querySelectorAll('[component]').forEach(
       function(component) {
         //////////////////////////////////////////////
+        const givenTag  = component.getAttribute('is');
         const givenName = component.getAttribute('component');
         console.assert(givenName.toUpperCase() === component.tagName,
           'Component '+givenName+' mismatch with tagName \''+
           component.tagName+
           '\'. please match them except casing.'
         );
-        const name      = givenName === '' 
+        const name = givenName === '' 
           ? component.tagName.charAt(0)+component.tagName.toLowerCase().substring(1)
           : givenName;
         const extend = component.getAttribute('extends');
         const lowerCaseExtend = extend && extend.toLowerCase();
         const extendComponent = extend && componentStore.components.get(lowerCaseExtend);
-        const extendTagName   = extendComponent 
-          ? extendComponent.tagName
-          : 'div';
+        const thisTag = givenTag 
+          ? givenTag 
+          : (extendComponent 
+            ? extendComponent.tagName
+            : componentStore.isTagKnown(extend)
+              ? extend
+              : 'div');
         component.removeAttribute('component');
+        component.removeAttribute('is');
         component.removeAttribute('extends');
         // create a new element and move the children and copy attributes
-        const newComponent = document.createElement(extendTagName);
+        const newComponent = document.createElement(thisTag);
         while(component.firstChild)
           newComponent.appendChild(component.firstChild);
         for (let attribute of component.attributes)
           newComponent.attributes.setNamedItem(attribute.cloneNode());
+        // copy attributes of the extended component
+        if(extendComponent) {
+          for (let attribute of extendComponent.attributes) {
+            if(attribute.name === 'component' ||
+               attribute.name === 'is' ||
+               attribute.name === 'extends' ||
+               attribute.name === 'keep-content')
+              continue;
+            newComponent.attributes.setNamedItem(attribute.cloneNode());
+          }
+        }
         // set the component attribute to the name
         newComponent.setAttribute('component', name);
         newComponent.component = name;

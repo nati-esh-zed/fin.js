@@ -16,11 +16,12 @@ A fine JavaScript library for fine execution of javascript code inside HTML attr
 <body> 
     <main id="root"
         $let-name="Adam"
-        $let-message="{'Hello '+$name}"
+        $let-message="{'Hello '+$name+'.'}"
         $let-count="{0}"
         >
-        <button $onClick="{#count++}">count: {$count}</button>
-        <p>{$message}</p>
+        <button $onClick="{$:count++}">count: {$count}</button>
+        <p>{$message} Who gave you the name {$name}?</p>
+        <p>{$?if-declared ?? 'not-declared'}</p>
     </main>
     <script>
         const fin = new Fin(document.getElementById('root'));

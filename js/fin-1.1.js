@@ -8,10 +8,11 @@ const Fin = function(rootElement) {
 	Fin.NODE_TYPE_ATTRIBUTE = 2;
 	Fin.NODE_TYPE_TEXT      = 3;
 	Fin.NODE_TYPE_COMMENT   = 8;
-	Fin.FIN_ATTRIB_PREFIX = '$';
+	Fin.FIN_ATTRIB_PREFIX   = '$';
+	Fin.FIN_ID_PREFIX       = 'fin';
 	Fin.FIN_ID_TOKEN = Fin.FIN_ATTRIB_PREFIX+'id';
-	Fin.LET_TOKEN = Fin.FIN_ATTRIB_PREFIX+'let-';
-	Fin.ON_TOKEN = Fin.FIN_ATTRIB_PREFIX+'on';
+	Fin.LET_TOKEN    = Fin.FIN_ATTRIB_PREFIX+'let-';
+	Fin.ON_TOKEN     = Fin.FIN_ATTRIB_PREFIX+'on';
 	Fin.REGEXP = {
 		BLOCK: /([^\\]|^)\{(?:(?:(.+)\()((?:\\[}{]|.)*?)(?:\)\2)|((?:\\[}{]|.)*?))\}/gs,
 		VARIABLES: /(?:(')(?:\\'|.)*?'|(")(?:\\"|.)*?"|([\$\#])(\?)?((?:[a-zA-Z_\-][\w_\-]*)?[\w_]))/g
@@ -34,7 +35,7 @@ const Fin = function(rootElement) {
 		const context = this;
 		const ctx     = context;
 		this.fin            = fin;
-		this.id             = 'fin'+(Fin.IdTop++);
+		this.id             = Fin.FIN_ID_PREFIX+(Fin.IdTop++);
 		this.element        = element;
 		this.input          = element;
 		this.output         = element.cloneNode();
@@ -62,6 +63,9 @@ const Fin = function(rootElement) {
 				'__result__='+__code__+';';
 			eval(__completeCode__);
 			return __result__;
+		};
+		context.evaluateInsideElement = function(code, withVars) {
+			return context.input.evaluateInside(code, withVars);
 		};
 		const prepareForUpdate = function() {
 			this.output.replaceChildren();
@@ -232,17 +236,17 @@ const Fin = function(rootElement) {
 			fin.update(context, targetNode);
 		};
 		this.prepareForUpdate = prepareForUpdate;
-		this.validName   = validName;
-		this.setVar      = setVar;
-		this.getVarQuiet = getVarQuiet;
-		this.getVar      = getVar;
-		this.hasVar      = hasVar;
-		this.removeVar   = removeVar;
+		this.validName        = validName;
+		this.setVar           = setVar;
+		this.getVarQuiet      = getVarQuiet;
+		this.getVar           = getVar;
+		this.hasVar           = hasVar;
+		this.removeVar        = removeVar;
 		this.updateReferences        = updateReferences;
 		this.parseVariableReferences = parseVariableReferences;
 		this.extractVarInfo          = extractVarInfo;
-		this.processText       = processText;
-		this.processValue      = processValue;
+		this.processText      = processText;
+		this.processValue     = processValue;
 	};
 	const contextMap  = new Map();
 	const rootContext = new Context(rootElement, null);

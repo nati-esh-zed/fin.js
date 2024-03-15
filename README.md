@@ -18,10 +18,15 @@ A fine JavaScript library for fine execution of javascript code inside HTML attr
         $let-name="Adam"
         $let-message="{'Hello '+$name+'.'}"
         $let-count="{0}"
+        $let-to-indicate-modification-and-update="waiting-for-modification"
         >
         <button $onClick="{$:count++}">count: {$count}</button>
         <p>{$message} Who gave you the name {$name}?</p>
         <p>{$?if-declared ?? 'not-declared'}</p>
+        <p>{$to-indicate-modification-and-update}</p>
+        <p>{$:to-indicate-modification-and-update}</p>
+        <p>{$:to-indicate-modification-and-update = 'modified'}</p>
+        <p>{$to-indicate-modification-and-update}</p>
     </main>
     <script>
         const fin = new Fin(document.getElementById('root'));

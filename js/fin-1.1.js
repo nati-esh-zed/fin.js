@@ -22,6 +22,15 @@ const Fin = function(rootElement) {
 		this.name       = name;
 		this.value      = value;
 		this.references = new Map();
+		this.hasReference = function(referencingContext, targetNode) {
+			let referencingNodes = this.references.get(referencingContext); 
+			if(!referencingNodes)
+				return false;
+			else if(targetNode)
+				return referencingNodes.indexOf(targetNode) !== -1;
+			else 
+				return true;
+		};
 		this.toString   = function() {
 			return '{ '+
 				'name: "'+this.name+'", '+
@@ -96,23 +105,23 @@ const Fin = function(rootElement) {
 			return variable;
 		};
 		const getVar = function(varName, options) {
-			const noReference = !!options && !!options.noReference;
+			const addReference = !!options && !!options.addReference;
 			const targetNode  = context.activeNode;
 			varName = validName(varName);
 			// get variable
 			const variable = this.variables.has(varName)
 					? this.variables.get(varName)
 					: this.parent && this.parent.getVarQuiet(varName, options);
-			// add context to references list
-			if(variable && targetNode && !noReference) {
+			// add context and context.activeNode to variable references
+			if(variable && targetNode && addReference) {
 				const referencingContext = context; 
-				let references = variable.references.get(referencingContext) 
-				if(!references) {
-					references = [];
-					variable.references.set(referencingContext, references);
+				let referencingNodes = variable.references.get(referencingContext); 
+				if(!referencingNodes) {
+					referencingNodes = [];
+					variable.references.set(referencingContext, referencingNodes);
 				}
-				if(references.indexOf(targetNode) === -1)
-					references.push(targetNode);
+				if(referencingNodes.indexOf(targetNode) === -1)
+					referencingNodes.push(targetNode);
 			}
 			return variable;
 		};
@@ -167,10 +176,12 @@ const Fin = function(rootElement) {
 							console.warn(codePiece);
 						}
 					}
-					const noReference = type === '#';
-					let optionsStr = '{noReference: '+noReference+'}';
+					const variable = context.getVarQuiet(varName);
+					const addReference = (!context.initialized && type !== '#') || 
+						!(variable && variable.hasReference(context, context.activeNode));
+					let optionsStr = addReference ? ',{addReference: '+addReference+'}' : '';
 					return varDefined 
-						? '(context.getVar(\''+varName+'\','+
+						? '(context.getVar(\''+varName+'\''+
 							optionsStr+
 							').value)'
 						: '\'{$'+varName+' not defined!}\'';

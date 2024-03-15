@@ -13,6 +13,7 @@ const Fin = function(rootElement) {
 	Fin.FIN_ID_TOKEN = Fin.FIN_ATTRIB_PREFIX+'id';
 	Fin.LET_TOKEN    = Fin.FIN_ATTRIB_PREFIX+'let-';
 	Fin.ON_TOKEN     = Fin.FIN_ATTRIB_PREFIX+'on';
+	Fin.ATTRIB_TOKEN = Fin.FIN_ATTRIB_PREFIX+'';
 	Fin.VAR_PREFIX_TOKEN              = '$';
 	Fin.CODE_BLOCK_ESCAPE_TOKEN       = '@';
 	Fin.CODE_BLOCK_RETURNING_TOKEN    = '#';
@@ -374,6 +375,13 @@ const Fin = function(rootElement) {
 					return result;
 				};
 				context.output.addEventListener(eventName, eventHandler);
+				processed = true;
+			} else if(attribute.name.indexOf(Fin.ATTRIB_TOKEN) === 0) {
+				const attributeName  = attribute.name.substring(Fin.ATTRIB_TOKEN.length);
+				const attributeValue = context.processValue(attribute.value);
+				const outputAttribute = document.createAttribute(attributeName);
+				outputAttribute.value = attributeValue;
+				context.output.attributes.setNamedItem(outputAttribute);
 				processed = true;
 			}
 			context.activeAttribute = undefined;

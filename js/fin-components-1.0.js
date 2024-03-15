@@ -34,7 +34,9 @@ const ComponentStore = function(componentsDefinitionRootElement, componentClient
           const tagName   = target.tagName.toLowerCase();
           const component = componentStore.components.get(tagName);
           if(component) {
-            const keepContent = !!target.attributes.getNamedItem('keep-content');
+            const keepContent = !!target.attributes.getNamedItem('keep-content')
+              || component.innerHTML === ''
+              || target.innerHTML !== '';
             if(keepContent)
               target.removeAttribute('keep-content');
             // clone the component and replace it

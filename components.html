@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Fine Components</title>
+	<link rel="stylesheet" href="css/components.css">
+	<script src="js/fin-1.1.js"></script>
+	<script src="js/fin-components-1.0.js"></script>
+</head>
+<body>
+	<div id="root">
+		<Greeting $let-name="world"></Greeting>
+		<FlexBox keep-content>
+			<Greeting $let-name="programmers"></Greeting>
+			<Greeting $let-name="friends"></Greeting>
+		</FlexBox>
+		<RowFlexBox keep-content>
+			<Greeting $let-name="programmers"></Greeting>
+			<Greeting $let-name="friends"></Greeting>
+		</RowFlexBox>
+		<ColFlexBox keep-content>
+			<Greeting $let-name="Adam"></Greeting>
+			<Greeting></Greeting>
+		</ColFlexBox>
+	</div>
+
+	<!-- Component Definitions -->
+	<div id="components">
+		<Box component="Box" extends="div"></Box>
+		<FlexBox component="FlexBox" extends="Box"></FlexBox>
+		<RowFlexBox component="RowFlexBox" extends="FlexBox"></RowFlexBox>
+		<ColFlexBox component="ColFlexBox" extends="FlexBox"></ColFlexBox>
+		<Greeting component="Greeting" extends="div">
+			<Box keep-content>Hello {$?name || 'user'}!</Box>
+		</Greeting>
+	</div>
+
+	<!-- ComponentStore -->
+	<script>
+		const componentStore = new ComponentStore(
+			document.getElementById('components'),
+			document.getElementById('root')
+		).removeDefinitionElement();
+	</script>
+
+	<!-- Fin -->
+	<script>
+		const fin = new Fin(document.getElementById('root'));
+		const rootContext = fin.updateRoot();
+	</script>
+</body>
+</html>

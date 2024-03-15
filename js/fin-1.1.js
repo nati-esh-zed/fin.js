@@ -186,23 +186,25 @@ const Fin = function(rootElement) {
 					if(!variable) {
 						if(opToken === Fin.VAR_UNDEFINED_TOKEN)
 							return undefined;
-						else if (!noError) {
-							const codePos = arguments[arguments.length-2];
-							const code    = arguments[arguments.length-1];
-							const lastNewLineIndex1 = Math.max(0, code.lastIndexOf('\n', codePos));
-							const lastNewLineIndex2 = Math.max(0, code.lastIndexOf('\n', lastNewLineIndex1-1));
-							const lastNewLineIndex3 = Math.max(0, code.lastIndexOf('\n', lastNewLineIndex2-1));
-							const lastNewLineIndex = lastNewLineIndex3;
-							const nextLineIndex = Math.max(code.length, code.indexOf('\n', codePos));
+						else {
 							const error = '`'+Fin.VAR_PREFIX_TOKEN+(opToken||'')+varName+'` '+varName+' not defined!';
-							console.error({
-								error: error,
-								context: context,
-							});
-							const codePiece = code.substring(lastNewLineIndex, lastNewLineIndex1+1)+
-								'>'+
-								code.substring(lastNewLineIndex1+1, nextLineIndex);
-							console.warn(codePiece);
+							if (!noError) {
+								const codePos = arguments[arguments.length-2];
+								const code    = arguments[arguments.length-1];
+								const lastNewLineIndex1 = Math.max(0, code.lastIndexOf('\n', codePos));
+								const lastNewLineIndex2 = Math.max(0, code.lastIndexOf('\n', lastNewLineIndex1-1));
+								const lastNewLineIndex3 = Math.max(0, code.lastIndexOf('\n', lastNewLineIndex2-1));
+								const lastNewLineIndex = lastNewLineIndex3;
+								const nextLineIndex = Math.max(code.length, code.indexOf('\n', codePos));
+								const codePiece = code.substring(lastNewLineIndex, lastNewLineIndex1+1)+
+									'>'+
+									code.substring(lastNewLineIndex1+1, nextLineIndex);
+								console.error({
+									error: error,
+									context: context,
+									where: codePiece
+								});
+							}
 							return '"{! '+error+' !}"';
 						}
 					} else {
@@ -276,33 +278,27 @@ const Fin = function(rootElement) {
 			return outputText;
 		};
 		const processValue = function(inputText, withVars) {
-			inputText = inputText.trim();
 			let result = undefined;
 			if(inputText.indexOf('{'+Fin.CODE_BLOCK_COMMENT_TOKEN) === 0)
 				return result;
-			const hashedBlockIndex = 
-					   inputText.indexOf('{'+Fin.CODE_BLOCK_RETURNING_TOKEN) === 0
-					|| inputText.indexOf('{'+Fin.CODE_BLOCK_INTERMEDIATE_TOKEN) === 0
-				? 0 : -1;
-			const hashedBlockLastIndex = 
-					   inputText.lastIndexOf(Fin.CODE_BLOCK_RETURNING_TOKEN+'}') === inputText.length-2
-					|| inputText.lastIndexOf(Fin.CODE_BLOCK_INTERMEDIATE_TOKEN+'}') === inputText.length-2
-				? inputText.length-2 : inputText.length;
-			const isIntermediate = inputText.indexOf('{'+Fin.CODE_BLOCK_INTERMEDIATE_TOKEN) === 0;
-			const isCodeBlock = inputText.charAt(0) === '{'
-				|| hashedBlockIndex === 0;
+			const isCodeBlock = inputText.charAt(0) === '{' 
+				&& inputText.charAt(inputText.length-1) === '}';
 			if(isCodeBlock) {
-				const startIndex = hashedBlockIndex === 0 ? 2 : 1;
-				const endIndex   = hashedBlockLastIndex === inputText.length-2 
+				const isIntermediate = inputText.indexOf('{'+Fin.CODE_BLOCK_INTERMEDIATE_TOKEN) === 0;
+				const isReturningBlock = inputText.indexOf('{'+Fin.CODE_BLOCK_RETURNING_TOKEN) === 0;
+				const startBlockIndex = isReturningBlock || isIntermediate ? 2 : 1;
+				const endBlockIndex = 
+							 inputText.lastIndexOf(Fin.CODE_BLOCK_RETURNING_TOKEN+'}') === inputText.length-2
+						|| inputText.lastIndexOf(Fin.CODE_BLOCK_INTERMEDIATE_TOKEN+'}') === inputText.length-2
 					? inputText.length-2 : inputText.length-1;
-				const codeBlock = inputText.substring(startIndex, endIndex);
+				const codeBlock = inputText.substring(startBlockIndex, endBlockIndex);
 				const [intermediateText_, updateSet] = 
 					context.parseVariableReferences(codeBlock, null, isIntermediate);
 				const intermediateText = intermediateText_.replaceAll('\\z', '');
 				if(isIntermediate) 
 					result = intermediateText;
 				else
-					result = context.evaluateInside(intermediateText, withVars, hashedBlockIndex !== 0);
+					result = context.evaluateInside(intermediateText, withVars, !isReturningBlock);
 				// update variable references
 				for(let entry of updateSet) {
 					const varName  = entry[0];
@@ -310,7 +306,7 @@ const Fin = function(rootElement) {
 					context.updateReferences(variable);
 				}
 			} else {
-				result = inputText;
+				result = context.processText(inputText);
 			}
 			return result;
 		};

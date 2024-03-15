@@ -8,47 +8,55 @@
 </head>
 <body> 
     <main id="root"
-        $let-count="{0}"
+        $let-count="{3}"
+        $let-my-pi="{3.1415}"
+        $let-my-empty
+        $let--my-str="hello world {$count}!"
         >
-        <pre><code>&lt;main id="root" $let-count="{@0@}"&gt;...</code></pre>
+<pre><code class="prettyprint">&lt;main id="root" 
+    $let-count="{@0@}"
+    $let-my-pi="{@3.1415@}"
+    $let-my-empty
+    $let--my-str="hello world {@$count@}!"
+&gt;...</code></pre>
         <table class="table-1">
             <tr>
-                <th>CODE</th>
                 <th>OUTPUT</th>
+                <th>CODE</th>
                 <th>INTERMEDIATE CODE</th>
             </tr>
             <tr>
-                <td><pre><code>{@*'this is a comment'*@}</code></pre></td>
                 <td><pre><code>{*'this is a comment'*}</code></pre></td>
+                <td><pre><code>{@*'this is a comment'*@}</code></pre></td>
                 <td><pre><code>{%*'this is a comment'*%}</code></pre></td>
             </tr>
             <tr>
-                <td><pre><code>{@#return 'hello from returning code block'#@}</code></pre></td>
                 <td><pre><code>{#return 'hello from returning code block'#}</code></pre></td>
+                <td><pre><code>{@#return 'hello from returning code block'#@}</code></pre></td>
                 <td><pre><code>{%#return 'hello from returning code block'#%}</code></pre></td>
             </tr>
             <tr>
-                <td><pre><code>{@'hello from expression code block'@}</code></pre></td>
                 <td><pre><code>{'hello from expression code block'}</code></pre></td>
+                <td><pre><code>{@'hello from expression code block'@}</code></pre></td>
                 <td><pre><code>{%'hello from expression code block'%}</code></pre></td>
             </tr>
             <tr>
-                <td><pre><code>{@'hello', 'world'@}</code></pre></td>
                 <td><pre><code>{'hello', 'world'}</code></pre></td>
+                <td><pre><code>{@'hello', 'world'@}</code></pre></td>
                 <td><pre><code>{%'hello', 'world'%}</code></pre></td>
             </tr>
             <tr>
-                <td>
-<pre><code>{@#return 'Anything inside \'{...}\' or \'{#... return ...#\z}\' \n'+
-    'will be evaluated and the value returned.\n'+
-    "Please use \"{#...return ...#\z}\" if there are \n"+
-    'going to be braces `{}` inside the block.'#@}</code></pre>
-                </td>
                 <td>
 <pre><code>{#return 'Anything inside \'{...}\' or \'{#... return ...#\z}\' \n'+
     'will be evaluated and the value returned.\n'+
     "Please use \"{#...return ...#\z}\" if there are \n"+
     'going to be braces `{}` inside the block.'#}</code></pre>
+                </td>
+                <td>
+<pre><code>{@#return 'Anything inside \'{...}\' or \'{#... return ...#\z}\' \n'+
+    'will be evaluated and the value returned.\n'+
+    "Please use \"{#...return ...#\z}\" if there are \n"+
+    'going to be braces `{}` inside the block.'#@}</code></pre>
                 </td>
                 <td>
 <pre><code>{%#return 'Anything inside \'{...}\' or \'{#... return ...#\z}\' \n'+
@@ -58,41 +66,67 @@
                 </td>
             </tr>
             <tr>
-                <td><pre><code>{@$count@}</code></pre></td>
                 <td><pre><code>{$count}</code></pre></td>
+                <td><pre><code>{@$count@}</code></pre></td>
                 <td><pre><code>{%$count%}</code></pre></td>
             </tr>
             <tr>
-                <td><pre><code>{@$?count@}</code></pre></td>
                 <td><pre><code>{$?count}</code></pre></td>
+                <td><pre><code>{@$?count@}</code></pre></td>
                 <td><pre><code>{%$?count%}</code></pre></td>
             </tr>
             <tr>
-                <td><pre><code>{@$:count@}</code></pre></td>
                 <td><pre><code>{$:count}</code></pre></td>
+                <td><pre><code>{@$:count@}</code></pre></td>
                 <td><pre><code>{%$:count%}</code></pre></td>
             </tr>
             <tr>
-                <td><pre><code>{@$double-count@}</code></pre></td>
                 <td><pre><code>{$double-count}</code></pre></td>
+                <td><pre><code>{@$double-count@}</code></pre></td>
                 <td><pre><code>{%$double-count%}</code></pre></td>
             </tr>
             <tr>
-                <td><pre><code>{@$?double-count@}</code></pre></td>
                 <td><pre><code>{$?double-count}</code></pre></td>
+                <td><pre><code>{@$?double-count@}</code></pre></td>
                 <td><pre><code>{%$?double-count%}</code></pre></td>
             </tr>
+            
             <tr>
+                <td><pre><code>{$my-pi}</code></pre></td>
+                <td><pre><code>{@$my-pi@}</code></pre></td>
+                <td><pre><code>{%$my-pi%}</code></pre></td>
+            </tr>
+            <tr>
+                <td><pre><code>'{$my-empty}'</code></pre></td>
+                <td><pre><code>'{@$my-empty@}'</code></pre></td>
+                <td><pre><code>'{%$my-empty%}'</code></pre></td>
+            </tr>
+            <tr>
+                <td><pre><code>{$-my-str}</code></pre></td>
+                <td><pre><code>{@$-my-str@}</code></pre></td>
+                <td><pre><code>{%$-my-str%}</code></pre></td>
+            </tr>
+            <tr>
+                <td><pre><code>{$MyStr}</code></pre></td>
+                <td><pre><code>{@$MyStr@}</code></pre></td>
+                <td><pre><code>{%$MyStr%}</code></pre></td>
+            </tr>
+            <tr>
+                <td><pre><code>{$myStr}</code></pre></td>
+                <td><pre><code>{@$myStr@}</code></pre></td>
+                <td><pre><code>{%$myStr%}</code></pre></td>
+            </tr>
+            <tr>
+                <td>
+                    <div>
+                        <button $onClick="{$:count++}">+ count: {$count}</button>
+                    </div>
+                </td>
                 <td>
 <pre><code>&lt;button $onClick="{@$:count++@}"
 &gt;
     + count: {@$count@}
 &lt;/button&gt;</code></pre>
-                </td>
-                <td>
-                    <div>
-                        <button $onClick="{$:count++}">+ count: {$count}</button>
-                    </div>
                 </td>
                 <td>
 <pre><code>&lt;button $onClick="{%$:count++%}"
@@ -102,18 +136,6 @@
                 </td>
             </tr>
             <tr>
-                <td>
-<pre><code>&lt;button $onClick="{@#
-    console.log([ctx, context, arguments]);
-    if(!this.set) {
-        this.set = true;
-        ctx.input.innerHTML = '- count: {$count}';
-        ctx.update();
-    } else {
-        $:count--;
-    }
-#@}"&gt;clickme&lt;/button&gt;</code></pre>
-                </td>
                 <td>
                     <div>
                         <button $onClick="{#
@@ -127,6 +149,18 @@
                             }
                         #}">clickme</button>
                     </div>
+                </td>
+                <td>
+<pre><code>&lt;button $onClick="{@#
+    console.log([ctx, context, arguments]);
+    if(!this.set) {
+        this.set = true;
+        ctx.input.innerHTML = '- count: {$count}';
+        ctx.update();
+    } else {
+        $:count--;
+    }
+#@}"&gt;clickme&lt;/button&gt;</code></pre>
                 </td>
                 <td>
 <pre><code>&lt;button $onClick="{%#
@@ -143,20 +177,32 @@
             </tr>
         </table>
         
-        <pre><code>&lt;div $let-double-count="{@$count*2@}"&gt;...</code></pre>
-        <div $let-double-count="{$count*2}">
+        <pre><code class="prettyprint">&lt;div $let-double-count="{@$count * 2@}"&gt;...</code></pre>
+        <div $let-double-count="{$count * 2}">
             <table class="table-1">
                 <tr>
-                    <th>CODE</th>
                     <th>OUTPUT</th>
+                    <th>CODE</th>
                     <th>INTERMEDIATE CODE</th>
                 </tr>
                 <tr>
-                    <td><pre><code>{@$double-count@}</code></pre></td>
                     <td><pre><code>{$double-count}</code></pre></td>
+                    <td><pre><code>{@$double-count@}</code></pre></td>
                     <td><pre><code>{%$double-count%}</code></pre></td>
                 </tr>
                 <tr>
+                    <td>
+                        <div
+                            $let-json="{{
+                                a: ['apple', 'ananas'], 
+                                b: ['banana'], 
+                                m: ['mango'],
+                            }}">
+                            <pre><code>{jsonToString($json)}</code></pre>
+                            <p>{$count} {$json.a[0]+'s'}</p>
+                            <p>{$double-count} {$json.a[1]+' and '+$json.m[0]+'s'}</p>
+                        </div>
+                    </td>
                     <td>
 <pre><code>
 &lt;div
@@ -170,18 +216,6 @@
     &lt;p&gt;{@$double-count@} {@$json.a[1]+' and '+$json.m[0]+'s'@}&lt;/p&gt;
 &lt;/div&gt;
 </code></pre>
-                    </td>
-                    <td>
-                        <div
-                            $let-json="{{
-                                a: ['apple', 'ananas'], 
-                                b: ['banana'], 
-                                m: ['mango'],
-                            }}">
-                            <pre><code>{jsonToString($json)}</code></pre>
-                            <p>{$count} {$json.a[0]+'s'}</p>
-                            <p>{$double-count} {$json.a[1]+' and '+$json.m[0]+'s'}</p>
-                        </div>
                     </td>
                     <td>
                         <div $let-json="{{
@@ -279,7 +313,7 @@
     </style>
     <script src="https://cdn.jsdelivr.net/gh/google/code-prettify@master/loader/run_prettify.js"></script>
     <script>
-        document.querySelectorAll('.table-1 code')
+        document.querySelectorAll('.table-1 td:not(:nth-of-type(1)) code')
         .forEach(function(e) {
             e.classList.add('prettyprint');
         })

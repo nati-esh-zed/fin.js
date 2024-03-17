@@ -26,6 +26,17 @@
         >{$count}</Display>
         <CounterInc></CounterInc>
       </Flexbox>
+
+      <Flexbox $let-show="{true}">
+        <Button $onClick="{#
+            $:show = !$show;
+            this.output.innerHTML = $show ? 'hide' : 'show';
+          #}"
+        >show</Button>
+        <div $if="{$show}">
+          <Display>shown</Display>
+        </div>
+      </Flexbox>
   
       <FlexBox $:value value="hello">
         <MInput 

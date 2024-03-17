@@ -403,7 +403,7 @@ const Fin = function(rootElement) {
 					context.setVar(varName, function(attributeValue) { 
 						'use strict'
 						const ctx = context;
-						if(!!attributeValue || attributeValue === '') {
+						if(attributeValue || attributeValue === '') {
 							ctx.output.setAttribute(attributeName, attributeValue);
 							ctx.output[attributeName] = attributeValue;
 						} else if(arguments.length >= 2 && !attributeValue) {
@@ -420,7 +420,7 @@ const Fin = function(rootElement) {
 			} else if(attribute.name.indexOf(Fin.ATTRIB_TOKEN) === 0) {
 				const attributeName  = attribute.name.substring(Fin.ATTRIB_TOKEN.length);
 				const attributeValue = context.processValue(attribute.value);
-				if(!!attributeValue || attributeValue === '') {
+				if(attributeName==='if' || attributeValue || attributeValue === '') {
 					if(attributeName === 'style' &&
 						typeof attributeValue === 'object') {
 						for(let entry of Object.entries(attributeValue)) {
@@ -431,6 +431,7 @@ const Fin = function(rootElement) {
 						const outputAttribute = document.createAttribute(attributeName);
 						outputAttribute.value = attributeValue;
 						context.output.attributes.setNamedItem(outputAttribute);
+						context.output[attributeName] = attributeValue;
 					}
 				} else {
 					if(context.output.attributes.hasOwnProperty(attributeName))
@@ -445,22 +446,22 @@ const Fin = function(rootElement) {
 		};
 		const processNode = function(node) {
 			let processed = false;
+			let outputNode = undefined;
 			context.activeNode = node;
 			if(node.nodeType === Fin.NODE_TYPE_TEXT) {
 				const nodeInfo = context.nodes.get(node);
 				if(nodeInfo) {
 					const inputText  = node.textContent;
 					const outputText = context.processText(inputText);
-					const outputNode = nodeInfo.outputNode;
+					outputNode = nodeInfo.outputNode;
 					outputNode.textContent = outputText;
+					processed = true;
 				} else {
 					if(node.textContent.trim() !== '') {
 						const inputText  = node.textContent;
 						const varInfo    = context.extractVarInfo(inputText);
 						const outputText = context.processText(inputText);
-						const outputNode = document.createTextNode(outputText);
-						outputNode.textContent = outputText;
-						context.output.appendChild(outputNode);
+						outputNode = document.createTextNode(outputText);
 						const newNodeInfo = { 
 							varInfo: varInfo, 
 							outputNode: outputNode 
@@ -474,19 +475,38 @@ const Fin = function(rootElement) {
 			} else if(node.nodeType === Fin.NODE_TYPE_ELEMENT) {
 				// process the children recursively
 				const nodeContext = fin.getOrInitContext(node, context);
-				const outputNode  = nodeContext.output;
 				fin.update(nodeContext);
-				context.output.appendChild(outputNode);
+				outputNode = nodeContext.output;
 				processed = true;
 			} else if(node.nodeType === Fin.NODE_TYPE_ATTRIBUTE) {
 				processed = processAttribute(node);
 			}
 			context.activeNode = undefined;
-			return processed;
+			return [processed, outputNode];
 		};
 		if(targetNode) {
 			if(targetNode !== context.activeNode) {
 				processNode(targetNode);
+			}
+			const ifConditionSet = context.output.hasAttribute('if');
+			if(ifConditionSet) {
+				const condition = context.output['if'];
+				if(!context.processingBody) {
+					context.processingBody = true;
+				if(condition) {
+						context.prepareForUpdate();
+						for(let node of context.input.childNodes) {
+							const result     = processNode(node);
+							const processed  = result[0];
+							const outputNode = result[1];
+							if(processed)
+								context.output.appendChild(outputNode);
+						}
+					} else {
+						context.prepareForUpdate();
+					}
+					context.processingBody = false;
+				}
 			}
 		}
 		else if(!context.updating) {
@@ -516,11 +536,13 @@ const Fin = function(rootElement) {
 			if(!context.processingBody) {
 				context.processingBody = true;
 				context.prepareForUpdate();
-				let index = 0;
 				for(let node of context.input.childNodes) {
-					const processed = processNode(node);
-					if(processed)
-						index++;
+					const result     = processNode(node);
+					const processed  = result[0];
+					const outputNode = result[1];
+					if(processed) {
+						context.output.appendChild(outputNode);
+					}
 				}
 				context.processingBody = false;
 			}

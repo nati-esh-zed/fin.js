@@ -1,6 +1,6 @@
 # fin.js
 
-A fine JavaScript library for fine execution of javascript code inside HTML attributes and bodies.
+A frontend JavaScript library to manage execution of javascript code inside HTML attributes and bodies.
 
 ## Sample
 
@@ -84,6 +84,24 @@ A fine JavaScript library for fine execution of javascript code inside HTML attr
   </div>
   <!-- components' styles -->
   <style>
+    /* ... */
+  </style>
+  <script>
+    const componentStore = new ComponentStore(
+      document.getElementById('components'),
+      document.getElementById('root')
+    ).removeDefinitionElement();
+  </script>
+  <script>
+    const fin = new Fin(document.getElementById('root'));
+    const rootContext = fin.updateRoot();
+</script>
+</body>
+</html>
+```
+
+```css
+  /* <style> */
     * {
       transition: 100ms;
     }
@@ -141,19 +159,7 @@ A fine JavaScript library for fine execution of javascript code inside HTML attr
     .CounterDec:hover:not(:active):not(:disabled) {
       background-color: hsl(from #b91546 h calc(s*.7) calc(min(l*1.4, 1)));
     }
-  </style>
-  <script>
-    const componentStore = new ComponentStore(
-      document.getElementById('components'),
-      document.getElementById('root')
-    ).removeDefinitionElement();
-  </script>
-  <script>
-    const fin = new Fin(document.getElementById('root'));
-    const rootContext = fin.updateRoot();
-</script>
-</body>
-</html>
+  /* </style> */
 ```
 
 ### v1.0

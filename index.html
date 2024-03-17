@@ -13,16 +13,29 @@
     <RootLayout>
       <Header>
         <Navbar>
-          <NavBrand $let-label="Brand" $let-to="#"></NavBrand>
+          <NavBrand href="" title="Brand"></NavBrand>
           <NavLinks>
-            <NavLink $let-label="home" $let-to="#Home"></NavLink>
-            <NavLink $let-label="components" $let-to="#Components"></NavLink>
+            <NavLink href="Home" title="home"></NavLink>
+            <NavLink href="Components" title="components"></NavLink>
           </NavLinks>
         </Navbar>
       </Header>
       <Main>
-        <Box>Welcome</Box>
-        <Box><MLink $let-to="#" $let-label="click me"></MLink></Box>
+        <ColFlexBox gap=".5rem">
+          <Card>
+            <Box>Welcome</Box>
+          </Card>
+          <Card gap=".5rem">
+            <Counter></Counter>
+            <Button $onClick="{console.log(this)}">click me</Button>
+          </Card>
+          <Card $let-query $let-search-engine>
+            <SearchBox></SearchBox>
+          </Card>
+          <Card>
+            <LoginForm></LoginForm>
+          </Card>
+        </ColFlexBox>
       </Main>
       <Footer>
         <Box>
@@ -34,29 +47,141 @@
 
 	<div id="components">
     <!-- Common Components -->
-		<Box component="Box" is="div"></Box>
-		<FlexBox component="FlexBox" extends="Box"></FlexBox>
-		<RowFlexBox component="RowFlexBox" extends="FlexBox"></RowFlexBox>
-		<ColFlexBox component="ColFlexBox" extends="FlexBox"></ColFlexBox>
-    <ALink component="ALink" is="a"
-      $href="{$?to || '#'}" 
-      $title="{$?label || ''}"
-    >{$?label || ''}
-    </ALink>
+    <div>
+      <Box component="Box" is="div"></Box>
+      <FlexBox component="FlexBox" extends="Box"
+        $:gap
+        $:justify-content
+        $:align-items
+        $style="{
+          ($gap(this) && 'gap: '+$gap(this)+';')+
+          ($justify-content(this) && 'justify-content: '+$justify-content(this)+';')+
+          ($align-items(this) && 'align-items: '+$align-items(this)+';')
+        }"
+      ></FlexBox>
+      <RowFlexBox component="RowFlexBox" extends="FlexBox"></RowFlexBox>
+      <ColFlexBox component="ColFlexBox" extends="FlexBox"></ColFlexBox>
+      <Card component="Card" extends="FlexBox" is="div"></Card>
+      <ALink component="ALink" is="a"></ALink>
+      <Button component="Button" is="button" type="button" title="button"></Button>
+      <ButtonLink component="ButtonLink" is="a" extends="Button"></ButtonLink>
+      <PrimaryButton component="PrimaryButton" extends="Button"></PrimaryButton>
+    </div>
     <!-- Layout Components -->
-    <RootLayout component="RootLayout" extends="ColFlexBox"></RootLayout>
-		<Header component="Header" extends="header"></Header>
-		<Main component="Main" extends="main"></Main>
-		<Footer component="Footer" extends="footer"></Footer>
+    <div>
+      <RootLayout component="RootLayout" extends="ColFlexBox"></RootLayout>
+      <Header component="Header" extends="header"></Header>
+      <Main component="Main" extends="main"></Main>
+      <Footer component="Footer" extends="footer"></Footer>
+    </div>
     <!-- Header Components -->
-    <Navbar component="Navbar" is="nav" extends="RowFlexBox"></Navbar>
-    <NavBrand component="NavBrand" is="div">
-      <ALink></ALink>
-    </NavBrand>
-    <NavLinks component="NavLinks" is="ul"></NavLinks>
-    <NavLink component="NavLink" is="li">
-      <ALink></ALink>
-    </NavLink>
+    <div>
+      <Navbar component="Navbar" is="nav" extends="RowFlexBox"></Navbar>
+      <NavBrand component="NavBrand" is="div"
+        $:href  $:title
+      >
+        <ALink 
+          $href="{$href() || '#'}"
+          $title="{$title() || 'link'}"
+        >{$title() || 'link'}</ALink>
+      </NavBrand>
+      <NavLinks component="NavLinks" is="ul"></NavLinks>
+      <NavLink component="NavLink" is="li"
+        $:href  $:title
+      >
+        <ALink 
+          $href="{$href() || '#'}"
+          $title="{$title() || 'link'}"
+        >{$title() || 'link'}</ALink>
+      </NavLink>
+    </div>
+    <!-- Main Components -->
+    <div>
+      <Counter component="Counter" extends="Button" 
+        $let-count="{0}" 
+        $onClick="{$:count++}"
+      >
+        count: {$count}
+      </Counter>
+      
+      <SearchBox component="SearchBox" extends="RowFlexBox"
+        gap=".25rem"
+      >
+        <select name="search-engine" title="search engine"
+          $onChange="{$:searchEngine = this.output.value}"
+          >
+          <option $value="{$:search-engine = 'https://google.com/search'}">google</option>
+          <option value="https://bing.com/search">bing</option>
+        </select>
+        <input type="text" name="query" title="search query"
+          $onInput="{$:query=this.output.value}"
+          $value="{$query}"
+        />
+        <ButtonLink 
+          title="search google"
+          $href="{$searchEngine+'?q='+encodeURI($query)}" 
+          $let-hovered="{false}"
+          $onMouseEnter="{$:hovered = true}"
+          $onMouseLeave="{$:hovered = false}"
+        >
+          {'\uD83D\uDD0D'} 
+          <span $style="{
+            'display: inline-block;'+
+            'overflow: hidden;'+
+            'transition: 300ms;'+
+            'width: '+($hovered ? '3.5rem' : '0')+';'
+          }">search</span>
+        </ButtonLink>
+      </SearchBox>
+
+      <LabeledInput component="LabeledInput" is="div" extends="RowFlexBox"
+        $:id  $:name  $:title  $:type  $:label  $:value  $:placeholder
+        $let-input-id="{$id}"
+      >
+        <label 
+          $for="{$input-id}"
+        >{$label() || ''}</label>
+        <input 
+          title="input"
+          $name="{$name()}"
+          $title="{$title() || $name()}"
+          $id="{$:input-id = $id() || this.id}" 
+          $type="{$type() || 'text'}" 
+          $title="{$label()}" 
+          $value="{$value()}"
+          $placeholder="{$placeholder()}"
+        />
+      </LabeledInput>
+    
+      <LoginForm component="LoginForm" is="form" extends="ColFlexBox"
+        $let-email
+        $let-password
+        $onsubmit="{#
+          event.preventDefault();
+          console.log({email: $email, password: $password});
+        #}"
+      >
+        <LabeledInput 
+          name="loginEmail" 
+          label="email" 
+          type="email" 
+          placeholder="user@example.com"
+          $onInput="{$:email=this.output.value}"
+          $value="{$email}"
+        >
+        </LabeledInput>
+        <LabeledInput 
+          name="loginPassword" 
+          label="pasword" 
+          type="password" 
+          $onInput="{$:password=this.output.value}"
+          $value="{$password}"
+        >
+        </LabeledInput>
+        <PrimaryButton type="submit">login</PrimaryButton>
+      </LoginForm>
+
+    </div>
 	</div>
 
 	<!-- ComponentStore -->

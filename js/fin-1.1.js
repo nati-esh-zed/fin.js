@@ -84,8 +84,17 @@ const Fin = function(rootElement) {
 			const varNames = __withVars__ ? Object.keys(__withVars__) : undefined;
 			if(!(varNames && varNames.length > 0) && __isExpression__) {
 				const __expressionCode__ = '('+__code__+')';
-				const __result__ = evaluateInContextImpl.call(context, __expressionCode__, '', __withVars__);
-				return __result__;
+				try {
+					const __result__ = evaluateInContextImpl.call(context, __expressionCode__, '', __withVars__);
+					return __result__;
+				} catch(error) {
+					console.error({
+						error: error, 
+						code: __expressionCode__, 
+						context: context
+					});
+					return undefined;
+				}
 			} else {
 				const varParamsCode      = varNames ? varNames.join(',') : '';
 				const varParamsValueCode = '('+(varNames

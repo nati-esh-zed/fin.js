@@ -8,6 +8,8 @@ A fine JavaScript library for fine execution of javascript code inside HTML attr
 
 `fin-1.1` + `fin-components-1.0`
 
+![demo-out](demo-out.png)
+
 ```html
 <!DOCTYPE html>
 <html lang="en">

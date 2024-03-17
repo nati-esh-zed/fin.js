@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Fine Components</title>
+  <link rel="stylesheet" href="css/index.css">
+	<script src="js/fin-1.1.js"></script>
+	<script src="js/fin-components-1.0.js"></script>
+</head>
+<body>
+	<div id="root">
+    <RootLayout>
+      <Header>
+        <Navbar>
+          <NavBrand $let-label="Brand" $let-to="#"></NavBrand>
+          <NavLinks>
+            <NavLink $let-label="home" $let-to="#Home"></NavLink>
+            <NavLink $let-label="components" $let-to="#Components"></NavLink>
+          </NavLinks>
+        </Navbar>
+      </Header>
+      <Main>
+        <Box>Welcome</Box>
+        <Box><MLink $let-to="#" $let-label="click me"></MLink></Box>
+      </Main>
+      <Footer>
+        <Box>
+          &copy; {new Date().getUTCFullYear()} Natnael Eshetu
+        </Box>
+      </Footer>
+    </RootLayout>
+	</div>
+
+	<div id="components">
+    <!-- Common Components -->
+		<Box component="Box" is="div"></Box>
+		<FlexBox component="FlexBox" extends="Box"></FlexBox>
+		<RowFlexBox component="RowFlexBox" extends="FlexBox"></RowFlexBox>
+		<ColFlexBox component="ColFlexBox" extends="FlexBox"></ColFlexBox>
+    <ALink component="ALink" is="a"
+      $href="{$?to || '#'}" 
+      $title="{$?label || ''}"
+    >{$?label || ''}
+    </ALink>
+    <!-- Layout Components -->
+    <RootLayout component="RootLayout" extends="ColFlexBox"></RootLayout>
+		<Header component="Header" extends="header"></Header>
+		<Main component="Main" extends="main"></Main>
+		<Footer component="Footer" extends="footer"></Footer>
+    <!-- Header Components -->
+    <Navbar component="Navbar" is="nav" extends="RowFlexBox"></Navbar>
+    <NavBrand component="NavBrand" is="div">
+      <ALink></ALink>
+    </NavBrand>
+    <NavLinks component="NavLinks" is="ul"></NavLinks>
+    <NavLink component="NavLink" is="li">
+      <ALink></ALink>
+    </NavLink>
+	</div>
+
+	<!-- ComponentStore -->
+	<script>
+		const componentStore = new ComponentStore(
+			document.getElementById('components'),
+			document.getElementById('root')
+		).removeDefinitionElement();
+	</script>
+
+	<!-- Fin -->
+	<script>
+		const fin = new Fin(document.getElementById('root'));
+		const rootContext = fin.updateRoot();
+	</script>
+</body>
+</html>

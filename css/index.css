@@ -1,0 +1,233 @@
+
+:root {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 
+  'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 
+  'Helvetica Neue', sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  height: 100vh;
+  background-color: gainsboro;
+}
+
+/* common components */
+
+.Box {
+  display: block;
+  padding: 0;
+  margin: 0;
+}
+
+.FlexBox {
+  display: flex;
+}
+
+.RowFlexBox {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.ColFlexBox {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+}
+
+.Card {
+  margin: 0 0;
+  padding: 1rem;
+  border: 1px solid #7777;
+  border-radius: .5rem;
+  background-color: #ffffff90;
+  box-shadow: 0 .25rem .25rem #345;
+}
+
+.ALink {
+  text-decoration: none;
+}
+.ALink,
+.ALink:visited {
+  color: #039;
+}
+
+.ALink:hover {
+  color: #14a;
+  text-decoration: underline;
+}
+
+.Button {
+  margin: 0;
+  padding: .5rem 1rem;
+  border-style: none;
+  background-color: #eaeaea;
+  box-shadow: 0 .05rem .05rem #345c;
+  font-size: 1rem;
+  transition: 50ms;
+}
+.Button:hover:not(:active) {
+  background-color: #f5f5f5;
+  box-shadow: 0 .1rem .1rem #3459;
+  /* transform: translateY(-.1rem); */
+}
+
+.PrimaryButton {
+  background-color: #0b80e0;
+  color: #fefefe;
+}
+.PrimaryButton:hover:not(:active) {
+  background-color: #0c87ec;
+  color: #ffffff;
+}
+
+.ButtonLink,
+.ButtonLink:hover,
+.ButtonLink:active {
+  padding: .5rem;
+  text-decoration: none;
+  color: unset;
+  border-radius: 2.5rem;
+}
+.ButtonLink:hover:not(:active) {
+  transform: none;
+}
+
+/* layout components */
+
+.RootLayout {
+  justify-content: space-between;
+  height: 100%;
+}
+
+.Header {
+  display: flex;
+  padding: 1rem;
+  border-bottom: 1px solid #7777;
+  background-color: ghostwhite;
+}
+
+.Main {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  height: 100%;
+  margin: 0;
+  padding: .5rem;
+  background-color: gainsboro;
+  background-image: linear-gradient(45deg, #a8e4f700, #3d9cea),
+    linear-gradient(-45deg, #a8f7c400, #3d9135);
+}
+
+.Footer {
+  padding: 1rem;
+  border-top: 1px solid #7777;
+  background-color: #223;
+  color: gainsboro;
+}
+
+/* header components */
+
+.Navbar {
+  justify-content: start;
+}
+
+.NavBrand {
+  margin: 0;
+  padding: .25rem .5rem;
+  display: inline-block;
+  font-size: large;
+  font-weight: bold;
+}
+.NavBrand .ALink,
+.NavBrand .ALink:hover
+ {
+  text-decoration: none;
+}
+.NavBrand .ALink,
+.NavBrand .ALink:visited {
+  color: #235;
+}
+
+.NavLinks {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  list-style: none;
+}
+
+.NavLink {
+  margin: 0;
+  padding: .25rem .5rem;
+  padding: 0;
+  display: inline-block;
+}
+.NavLink .ALink {
+  margin: 0;
+  padding: 0;
+  padding: .25rem .25rem;
+  border: .1rem solid transparent;
+  border-radius: 1rem;
+  transition: 200ms;
+}
+.NavLink .ALink:hover {
+  border-bottom-color: #1515a177;
+  border-radius: .5rem;
+}
+.NavLink .ALink,
+.NavLink .ALink:hover
+.NavLink .ALink:active {
+  text-decoration: none;
+}
+
+/* main components */
+
+.Counter {
+  font-family: cursive;
+  border-radius: .5rem;
+}
+
+.SearchBox {
+  margin: 0;
+  padding: .5rem 1rem;
+  background-color: sandybrown;
+}
+
+.LabeledInput {
+  margin: 0;
+  padding: 0;
+  gap: .5rem;
+  justify-content: center;
+}
+
+.LabeledInput label {
+  margin: 0;
+  padding: 0;
+  color: #444;
+  text-align: right;
+  width: 7rem;
+}
+.LabeledInput label:empty {
+  display: none;
+}
+
+.LabeledInput input {
+  margin: 0;
+  padding: .25rem;
+}
+
+.LoginForm {
+  margin: 0 auto;
+  padding: 1rem;
+  width: 20rem; 
+  border: 1px solid #777a;
+  border-radius: .5rem;
+  gap: .5rem; 
+  background-color: snow;
+}

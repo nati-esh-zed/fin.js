@@ -66,6 +66,26 @@
                 </td>
             </tr>
             <tr>
+                <td><pre><code><div $let-my-var="{'my value'}">{$my-var} or {$myVar}</div></code></pre></td>
+                <td><pre><code>&lt;div $let-my-var="{'my value'}"&gt;{@$my-var@} or {@$myVar@}&lt;/div&gt;</code></pre></td>
+                <td><pre><code  $let-my-var="{'my value'}">&lt;div  $let-my-var="{'my value'}"&gt;{%$my-var%} or {%$myVar%}&lt;/div&gt;</code></pre></td>
+            </tr>
+            <tr>
+                <td><pre><code><div $:title title="captured title attribute">{$title()}</div></code></pre></td>
+                <td><pre><code>&lt;div $:title title="captured title attribute"&gt;{@$title()@}&lt;/div&gt;</code></pre></td>
+                <td><pre><code $:title>&lt;div $:title title="captured title attribute"&gt;{%$title()%}&lt;/div&gt;</code></pre></td>
+            </tr>
+            <tr>
+                <td><pre><code><div $:value="val" value="captured value attribute as val">{$val()}</div></code></pre></td>
+                <td><pre><code>&lt;div $:value="val" value="captured value attribute as val"&gt;{@$val()@}&lt;/div&gt;</code></pre></td>
+                <td><pre><code $:value="val">&lt;div $:value="val" value="captured value attribute as val"&gt;{%$val()%}&lt;/div&gt;</code></pre></td>
+            </tr>
+            <tr>
+                <td><pre><code><div $:id="id{1}" id="captured id attribute as id1">{$id1()}</div></code></pre></td>
+                <td><pre><code>&lt;div $:id="id{@1@}" id="captured id attribute as id1"&gt;{@$id1()@}&lt;/div&gt;</code></pre></td>
+                <td><pre><code $:id="id{1}">&lt;div $:id="id{%1%}" id="captured id attribute as id1"&gt;{%$id1()%}&lt;/div&gt;</code></pre></td>
+            </tr>
+            <tr>
                 <td><pre><code>{$count}</code></pre></td>
                 <td><pre><code>{@$count@}</code></pre></td>
                 <td><pre><code>{%$count%}</code></pre></td>

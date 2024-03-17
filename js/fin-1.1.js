@@ -401,9 +401,13 @@ const Fin = function(rootElement) {
 			} else if(attribute.name.indexOf(Fin.ATTRIB_TOKEN) === 0) {
 				const attributeName  = attribute.name.substring(Fin.ATTRIB_TOKEN.length);
 				const attributeValue = context.processValue(attribute.value);
-				const outputAttribute = document.createAttribute(attributeName);
-				outputAttribute.value = attributeValue;
-				context.output.attributes.setNamedItem(outputAttribute);
+				if(!!attributeValue || attributeValue==='') {
+					const outputAttribute = document.createAttribute(attributeName);
+					outputAttribute.value = attributeValue;
+					context.output.attributes.setNamedItem(outputAttribute);
+				} else if(context.output.attributes.hasOwnProperty(attributeName)) {
+					context.output.attributes.removeNamedItem(attributeName);
+				}
 				processed = true;
 			}
 			context.activeAttribute = undefined;

@@ -18,7 +18,7 @@ A frontend JavaScript library to manage execution of javascript code inside HTML
   - scoped `variable` lookup.
 
   ```html
-  {$count}` `{$?count}` `{$:count++}
+  {$count} {$?count} {$:count++}
   ```
 
   - `context` bound javascript code block parsing in attributes and child nodes.

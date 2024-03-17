@@ -2,6 +2,149 @@
 
 A frontend JavaScript library to manage execution of javascript code inside HTML attributes and bodies.
 
+## Features
+
+- no build tool required.
+- completely client-side;
+
+- **fin-1.1**
+  - provide `context` that is setup per element with the original html as input and processed html as output.
+  - `variable` declarations and management per `context`/`element`. 
+  
+  ```html
+  <div $let-count="{0}>
+  ```
+
+  - scoped `variable` lookup.
+
+  ```html
+  {$count}` `{$?count}` `{$:count++}
+  ```
+
+  - `context` bound javascript code block parsing in attributes and child nodes.
+  - optimal `variable` update per referencing node.
+  
+  ```html
+  {$:count++ /* causes update to referencing nodes */}
+  ```
+  
+  - set attributes from processed and evaluated code blocks.
+  
+  ```html
+  <div $id="{'eid'+$count}" $disabled="{!$?disable}">
+  ```
+  
+  - remove attributes based on falsely values except `''`.
+  - handle special attributes `$if` and `$style` with `$style` accepting both string and object values.
+
+  ```html
+  <FlexBox $style="{{ gap: '.5rem' }}"></FlexBox>
+  <!--  -->
+  <div $if="{$isLoggedIn}"><Dashboard></Dashboard></div>
+  <div $if="{!$isLoggedIn}"><Auth></Auth></div>
+  ```
+
+  - capturing, getting and updating attributes like `variables` but as functions.
+  
+  ```html
+  capture: <div $:value> get: ${value()} set: {$:value(10)} </div>
+  ```
+  
+  - conditional html processing.
+  
+  ```html
+  <div $if="{$count%2}>that is odd</div>"
+  ````
+
+- fin-components-1.0
+  - provide `context-store` that to store and manage component definitions and client.
+  - allow setting of component's tag type using the `is` attribute.
+  - allow attribute, class-name and innerHTML `inheritance` using the `extends` attribute.
+
+  ```html
+  <MyComponent component="MyComponent" extends="BaseComponent"></MyComponent>
+  ```
+  
+  - automatically add all inherited and self component names as css class names to the class list of the component.
+  
+  ```html
+  <div component="MyComponent" class="MyComponent BaseComponent"></div>
+  ```
+
+  - smart innerHTML choosing and overriding between component definition and usage.
+
+  ```html
+  <Button component="Button" is="button">button</Button> 
+  -> <button ...>button</button>
+  <MyButton component="MyButton" extends="Button">my button</MyButton> 
+  -> <button ...>my button</button>
+  <MyButton>click me</MyButton> 
+  -> <button ...>click me</button>
+  ```
+
+  - **powerful** when combined with `fin-1.1` using captured attributes as component parameters.
+
+  ```html
+  <!-- client -->
+  <LabeledInput label="fruit" $onInput="{console.log($value())}"></LabeledInput>
+  <!-- definition -->
+  <LabeledInput component="LabeledInput" extends="Box" 
+    $:label $:value $:type >
+    <label>
+      {$label() || ''}
+      <input $type="{$type() || 'text'}"
+        $value="{$value()}"
+        $onInput="{$:value(this.output.value)}"
+      ></input>
+    </label>
+  </LabeledInput>
+  ```
+
+- what about references? just use an `$attribute` and set an upper scope variable the the element's context using the `this` keyword. And access it using that variable elsewhere under that variable's scope.
+
+  ```html
+  <div $let-fruit>
+    <LabeledInput $ref="{$:fruit = this}" label="fruit"></LabeledInput>
+    <button $onClick="{console.log($fruit.output.value)}">get fruit</button>
+  </div>
+  ```
+
+## Getting Started
+
+- `fin-1.1.js` + `fin-components-1.0.js`
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My First fin.js project</title>
+  <!-- <link rel="stylesheet" href="css/components.css"> -->
+  <script src="js/fin-components-1.0.js"></script>
+  <script src="js/fin-1.1.js"></script>
+</head>
+<body>
+  <!-- root -->
+  <div id="root"></div>
+  <!-- components -->
+  <div id="components"></div>
+  <!-- components' styles. best to use .css file -->
+  <!-- <style></style> -->
+  <script>
+    const componentStore = new ComponentStore(
+      document.getElementById('components'),
+      document.getElementById('root')
+    ).removeDefinitionElement();
+  </script>
+  <script>
+    const fin = new Fin(document.getElementById('root'));
+    const rootContext = fin.updateRoot();
+  </script>
+</body>
+</html>
+```
+
 ## Sample
 
 ### v1.1
@@ -38,6 +181,17 @@ A frontend JavaScript library to manage execution of javascript code inside HTML
           }}"
         >{$count}</Display>
         <CounterInc></CounterInc>
+      </Flexbox>
+  
+      <Flexbox $let-show="{true}">
+        <Button $onClick="{#
+            $:show = !$show;
+            this.output.innerHTML = $show ? 'hide' : 'show';
+          #}"
+        >show</Button>
+        <div $if="{$show}">
+          <Display>shown</Display>
+        </div>
       </Flexbox>
   
       <FlexBox $:value value="hello">

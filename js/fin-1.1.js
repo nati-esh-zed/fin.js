@@ -391,7 +391,12 @@ const Fin = function(rootElement) {
 				const varName = attribute.value === '' 
 					? attributeName
 					: context.processText(attribute.value).trim();
-					context.setVar(varName, function() { return context.output.getAttribute(attributeName); });
+					context.setVar(varName, function(context_) { 
+						'use strict'
+						const ctx = context_ || context;
+						const attrib = ctx.output.attributes.getNamedItem(attributeName);
+						return attrib && attrib.value; 
+					});
 				processed = true;
 			} else if(attribute.name.indexOf(Fin.ATTRIB_TOKEN) === 0) {
 				const attributeName  = attribute.name.substring(Fin.ATTRIB_TOKEN.length);

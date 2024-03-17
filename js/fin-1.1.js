@@ -1,6 +1,7 @@
 
 
 const Fin = function(rootElement) {
+	'use strict'
 	if(!(rootElement instanceof HTMLElement))
 		throw new Error('rootElement must be instance of HTMLElement');
 	const fin = this;
@@ -14,6 +15,7 @@ const Fin = function(rootElement) {
 	Fin.LET_TOKEN    = Fin.FIN_ATTRIB_PREFIX+'let-';
 	Fin.ON_TOKEN     = Fin.FIN_ATTRIB_PREFIX+'on';
 	Fin.ATTRIB_TOKEN = Fin.FIN_ATTRIB_PREFIX+'';
+	Fin.CAPTURED_ATTRIB_TOKEN = Fin.FIN_ATTRIB_PREFIX+':';
 	Fin.VAR_PREFIX_TOKEN              = '$';
 	Fin.CODE_BLOCK_ESCAPE_TOKEN       = '@';
 	Fin.CODE_BLOCK_RETURNING_TOKEN    = '#';
@@ -27,6 +29,7 @@ const Fin = function(rootElement) {
 	};
 	Fin.IdTop = 1;
 	const Variable = function(name, value) {
+		'use strict'
 		this.name       = name;
 		this.value      = value;
 		this.references = new Map();
@@ -49,6 +52,7 @@ const Fin = function(rootElement) {
 		};
 	};
 	const Context = function(element, parent) {
+		'use strict'
 		const context = this;
 		const ctx     = context;
 		this.fin            = fin;
@@ -68,17 +72,19 @@ const Fin = function(rootElement) {
 		this.output[Fin.FIN_ID_TOKEN] = this.id;
 		this.input.setAttribute('fid', this.id);
 		this.output.setAttribute('fid', this.id);
-		context.evaluateInsideImpl = function(__functionCode__, __varParamsValueCode__, __withVars__) {
+		const evaluateInContextImpl = function(__functionCode__, __varParamsValueCode__, __withVars__) {
+			'use strict'
 			let __result__ = undefined;
 			const __completeCode__ = '__result__='+__functionCode__+__varParamsValueCode__;
 			eval(__completeCode__);
 			return __result__;
 		};
-		context.evaluateInside = function(__code__, __withVars__, __isExpression__) {
+		const evaluateInContext = function(__code__, __withVars__, __isExpression__) {
+			'use strict'
 			const varNames = __withVars__ ? Object.keys(__withVars__) : undefined;
 			if(!(varNames && varNames.length > 0) && __isExpression__) {
 				const __expressionCode__ = '('+__code__+')';
-				const __result__ = this.evaluateInsideImpl(__expressionCode__, '', __withVars__);
+				const __result__ = evaluateInContextImpl.call(context, __expressionCode__, '', __withVars__);
 				return __result__;
 			} else {
 				const varParamsCode      = varNames ? varNames.join(',') : '';
@@ -94,21 +100,23 @@ const Fin = function(rootElement) {
 				const endParen = __isExpression__ ? ')' : '';
 				const __functionCode__ = '(function('+varParamsCode+'){'+ 
 					returnCode+__code__+endParen+';'+
-					'})';
-				const __result__ = this.evaluateInsideImpl(__functionCode__, varParamsValueCode, __withVars__);
+					'}).bind(context)';
+				const __result__ = evaluateInContextImpl.call(context, __functionCode__, varParamsValueCode, __withVars__);
 				return __result__;
 			}
 		};
-		const prepareForUpdate = function() {
+		this.prepareForUpdate = function() {
 			this.output.replaceChildren();
 		};
-		const validName = function(name) {
+		this.validName = function(name) {
+			'use strict'
 			return !name 
 				? undefined
 				: name.replaceAll(/\-+([a-z])/g, function(match, letter) { return letter.toUpperCase(); });
 		};
-		const setVar = function(varName, value) {
-			varName = validName(varName);
+		this.setVar = function(varName, value) {
+			'use strict'
+			varName = context.validName(varName);
 			let variable = this.getVarQuiet(varName);
 			if(!variable) {
 				variable = new Variable(varName, value);
@@ -119,24 +127,28 @@ const Fin = function(rootElement) {
 			}
 			return variable;
 		};
-		const getVarQuiet = function(varName) {
-			varName = validName(varName);
+		this.getVarQuiet = function(varName) {
+			'use strict'
+			varName = context.validName(varName);
 			// get variable
 			const variable = this.variables.has(varName)
 					? this.variables.get(varName)
 					: this.parent && this.parent.getVarQuiet(varName);
 			return variable;
 		};
-		const getVarAddRef = function(varName) {
+		this.getVarAddRef = function(varName) {
+			'use strict'
 			return this.getVar(varName, {addReference: true});
 		};
-		const getVarNoRef = function(varName) {
+		this.getVarNoRef = function(varName) {
+			'use strict'
 			return this.getVar(varName, {addReference: false});
 		};
-		const getVar = function(varName, options) {
+		this.getVar = function(varName, options) {
+			'use strict'
 			const addReference = !!options && !!options.addReference;
-			const targetNode  = context.activeNode;
-			varName = validName(varName);
+			const targetNode  = this.activeNode;
+			varName = context.validName(varName);
 			// get variable
 			const variable = this.variables.has(varName)
 					? this.variables.get(varName)
@@ -154,16 +166,19 @@ const Fin = function(rootElement) {
 			}
 			return variable;
 		};
-		const hasVar = function(varName) {
-			varName = validName(varName);
+		this.hasVar = function(varName) {
+			'use strict'
+			varName = context.validName(varName);
 			return this.variables.has(varName) ||
 				(this.parent && this.parent.hasVar(varName));
 		};
-		const removeVar = function(varName) {
-			varName = validName(varName);
+		this.removeVar = function(varName) {
+			'use strict'
+			varName = context.validName(varName);
 			this.variables.delete(varName);
 		};
-		const updateReferences = function(variable) {
+		this.updateReferences = function(variable) {
+			'use strict'
 			if(variable) {
 				for(let referencingContext of variable.references) {
 					const references = referencingContext[1];
@@ -173,7 +188,8 @@ const Fin = function(rootElement) {
 				}
 			}
 		};
-		const parseVariableReferences = function(code, addReference, noError) {
+		this.parseVariableReferences = function(code, addReference, noError) {
+			'use strict'
 			const updateSet = new Map();
 			const output = code.replaceAll(
 				Fin.REGEXP.VARIABLES, 
@@ -182,7 +198,7 @@ const Fin = function(rootElement) {
 						return matchVP;
 					if(opToken === Fin.VAR_UPDATE_TOKEN) 
 						updateSet.set(varName, true);
-					validVarName = validName(varName ? varName : varName2);
+					const validVarName = context.validName(varName ? varName : varName2);
 					const variable = context.getVarQuiet(varName);
 					if(!variable) {
 						if(opToken === Fin.VAR_UNDEFINED_TOKEN)
@@ -217,10 +233,10 @@ const Fin = function(rootElement) {
 						else if(variable)
 							addReference = !variable.hasReference(context, context.activeNode);
 						if(addReference) {
-							const variableCode = 'context.getVarAddRef(\''+validVarName+'\').value';
+							const variableCode = 'this.getVarAddRef(\''+validVarName+'\').value';
 							return variableCode;
 						} else {
-							const variableCode = 'context.getVarNoRef(\''+validVarName+'\').value';
+							const variableCode = 'this.getVarNoRef(\''+validVarName+'\').value';
 							return variableCode;
 						}
 					}
@@ -228,7 +244,8 @@ const Fin = function(rootElement) {
 			);
 			return [output, updateSet];
 		};
-		const extractVarInfo = function(inputText) {
+		this.extractVarInfo = function(inputText) {
+			'use strict'
 			const varMap = new Map();
 			inputText.replaceAll(Fin.REGEXP.BLOCK, 
 				function(_m_, blockTypeToken, codeBlock) {
@@ -248,7 +265,8 @@ const Fin = function(rootElement) {
 			);
 			return varMap;
 		};
-		const processText = function(inputText, withVars) {
+		this.processText = function(inputText, withVars) {
+			'use strict'
 			const outputText = inputText.replaceAll(Fin.REGEXP.BLOCK, 
 				function(_m_, blockTypeToken, codeBlock) {
 					if(blockTypeToken === Fin.CODE_BLOCK_COMMENT_TOKEN) {
@@ -264,7 +282,7 @@ const Fin = function(rootElement) {
 						if(isIntermediate)
 							result = '{'+intermediateText+'}';
 						else
-							result = context.evaluateInside(intermediateText, withVars, 
+							result = evaluateInContext(intermediateText, withVars, 
 								blockTypeToken !== Fin.CODE_BLOCK_RETURNING_TOKEN);
 						// update variable references
 						for(let entry of updateSet) {
@@ -278,7 +296,8 @@ const Fin = function(rootElement) {
 			);
 			return outputText;
 		};
-		const processValue = function(inputText, withVars) {
+		this.processValue = function(inputText, withVars) {
+			'use strict'
 			let result = undefined;
 			if(inputText.indexOf('{'+Fin.CODE_BLOCK_COMMENT_TOKEN) === 0)
 				return result;
@@ -294,12 +313,12 @@ const Fin = function(rootElement) {
 					? inputText.length-2 : inputText.length-1;
 				const codeBlock = inputText.substring(startBlockIndex, endBlockIndex);
 				const [intermediateText_, updateSet] = 
-					context.parseVariableReferences(codeBlock, null, isIntermediate);
+				context.parseVariableReferences(codeBlock, null, isIntermediate);
 				const intermediateText = intermediateText_.replaceAll('\\z', '');
 				if(isIntermediate) 
 					result = intermediateText;
 				else
-					result = context.evaluateInside(intermediateText, withVars, !isReturningBlock);
+					result = evaluateInContext(intermediateText, withVars, !isReturningBlock);
 				// update variable references
 				for(let entry of updateSet) {
 					const varName  = entry[0];
@@ -312,37 +331,27 @@ const Fin = function(rootElement) {
 			return result;
 		};
 		this.update = function(targetNode) {
+			'use strict'
 			fin.update(context, targetNode);
 		};
-		this.prepareForUpdate = prepareForUpdate;
-		this.validName        = validName;
-		this.setVar           = setVar;
-		this.getVarQuiet      = getVarQuiet;
-		this.getVarAddRef     = getVarAddRef;
-		this.getVarNoRef      = getVarNoRef;
-		this.getVar           = getVar;
-		this.hasVar           = hasVar;
-		this.removeVar        = removeVar;
-		this.updateReferences        = updateReferences;
-		this.parseVariableReferences = parseVariableReferences;
-		this.extractVarInfo          = extractVarInfo;
-		this.processText      = processText;
-		this.processValue     = processValue;
 	};
 	const contextMap  = new Map();
 	const rootContext = new Context(rootElement, null);
 	/* initialize */
 	contextMap.set(rootElement, rootContext);
-	const initContext = function(element, parent) {
+	this.initContext = function(element, parent) {
+		'use strict'
 		const context = new Context(element, parent);
 		contextMap.set(element, context);
 		return context;
 	};
-	const getOrInitContext = function(element, parent) {
+	this.getOrInitContext = function(element, parent) {
+		'use strict'
 		return (contextMap && contextMap.get(element))
-			|| initContext(element, parent);
+			|| fin.initContext(element, parent);
 	};
-	const getContext = function(selectorOrElement) {
+	this.getContext = function(selectorOrElement) {
+		'use strict'
 		if(typeof selectorOrElement === 'string') {
 			const element = rootContext.input.querySelector(selectorOrElement);
 			return fin.contextMap.get(element);
@@ -353,7 +362,8 @@ const Fin = function(rootElement) {
 			throw ('invalid type for selectorOrElement: '+typeof selectorOrElement);
 		}
 	};
-	const update = function(context, targetNode) {
+	this.update = function(context, targetNode) {
+		'use strict'
 		if(!context)
 			throw new Error('null context');
 		if(!(context instanceof Context))
@@ -375,6 +385,13 @@ const Fin = function(rootElement) {
 					return result;
 				};
 				context.output.addEventListener(eventName, eventHandler);
+				processed = true;
+			} else if(attribute.name.indexOf(Fin.CAPTURED_ATTRIB_TOKEN) === 0) {
+				const attributeName  = attribute.name.substring(Fin.CAPTURED_ATTRIB_TOKEN.length);
+				const varName = attribute.value === '' 
+					? attributeName
+					: context.processText(attribute.value).trim();
+					context.setVar(varName, function() { return context.output.getAttribute(attributeName); });
 				processed = true;
 			} else if(attribute.name.indexOf(Fin.ATTRIB_TOKEN) === 0) {
 				const attributeName  = attribute.name.substring(Fin.ATTRIB_TOKEN.length);
@@ -417,7 +434,7 @@ const Fin = function(rootElement) {
 				// skip comments
 			} else if(node.nodeType === Fin.NODE_TYPE_ELEMENT) {
 				// process the children recursively
-				const nodeContext = getOrInitContext(node, context);
+				const nodeContext = fin.getOrInitContext(node, context);
 				const outputNode  = nodeContext.output;
 				fin.update(nodeContext);
 				context.output.appendChild(outputNode);
@@ -474,98 +491,97 @@ const Fin = function(rootElement) {
 			context.initialized = true;
 		return context;
 	};
-	const updateRoot = function(targetNode) {
-		return update(rootContext, targetNode);
+	this.updateRoot = function(targetNode) {
+		'use strict'
+		return fin.update(rootContext, targetNode);
 	};
-    const jsonToString = function(json, doNotQuoteKeys, indent, tab, newLine) {
-        if(json === undefined)
-            return undefined;
-        let  jsonStr = 'null';
-        if(json) {
-            indent  = indent  !== undefined ? indent : '';
-            tab     = tab     !== undefined ? tab : "    ";
-            newLine = newLine !== undefined ? newLine : "\n";
-            const jsonToStringValue = function(value) {
-                if(value === undefined || value === null) {
-                    return 'null';
-                } else if(typeof value === 'boolean' || value instanceof Boolean) {
-                    return value ? 'true' : 'false';
-                } else if(typeof value === 'number' || value instanceof Number) {
-                    return value;
-                } else if(value instanceof String) {
-                    return '"'+value+'"';
-                } else if(value instanceof Array) {
-                    return jsonToString(value, doNotQuoteKeys, indent+tab, tab, newLine);
-                } else if(value instanceof Object) {
-                    return jsonToString(value, doNotQuoteKeys, indent+tab, tab, newLine);
-                } else {
-                    return '"'+value+'"';
-                }
-            };
-            const newLineJsonValue = function(value) {
-                if(value === undefined || value === null) {
-                    return false;
-                } else if(typeof value === 'boolean' || value instanceof Boolean) {
-                    return false;
-                } else if(typeof value === 'number' || value instanceof Number) {
-                    return false;
-                } else if(value instanceof String) {
-                    return false;
-                } else if(value instanceof Array) {
-                    return true;
-                } else if(value instanceof Object) {
-                    return true;
-                } else {
-                    return true;
-                }
-            };
-            if(json instanceof Array) {
-                jsonStr = '[';
-                const entries = json;
-                if(entries.length > 0) {
-                    const newLineElems = newLineJsonValue(entries[0]);
-                    jsonStr += newLineElems ? newLine : '';
-                    for(let i = 0; i < entries.length; i++) {
-                        const value = entries[i]; 
-                        jsonStr += newLineElems ? indent+tab : '';
-                        jsonStr += jsonToStringValue(value);
-                        jsonStr += i < entries.length-1 ? ', ' : '';
-                        jsonStr += newLineElems ? newLine : '';
-                    }
-                    jsonStr += newLineElems ? indent : '';
-                }
-                jsonStr += ']';
-            } else if(json instanceof Object) {
-                jsonStr = '{';
-                const entries = Object.entries(json);
-                if(entries.length > 0) {
-                    jsonStr += newLine;
-                    for(let i = 0; i < entries.length; i++) {
-                        const entry = entries[i];
-                        const key   = entry[0];
-                        const value = entry[1];
-                        jsonStr += indent+tab;
-                        jsonStr += doNotQuoteKeys ? key : '"'+key+'"';
-                        jsonStr += ': ';
-                        jsonStr += jsonToStringValue(value);
-                        jsonStr += i < entries.length-1 ? ', ' : '';
-                        jsonStr += newLine;
-                    }
-                    jsonStr += indent;
-                }
-                jsonStr += '}';
-            } else {
-                jsonStr = jsonToStringValue(json);
-            }
-        }
-        return jsonStr;
-    };
+	const jsonToString = function(json, doNotQuoteKeys, indent, tab, newLine) {
+		'use strict'
+			if(json === undefined)
+					return undefined;
+			let  jsonStr = 'null';
+			if(json) {
+					indent  = indent  !== undefined ? indent : '';
+					tab     = tab     !== undefined ? tab : "    ";
+					newLine = newLine !== undefined ? newLine : "\n";
+					const jsonToStringValue = function(value) {
+							if(value === undefined || value === null) {
+									return 'null';
+							} else if(typeof value === 'boolean' || value instanceof Boolean) {
+									return value ? 'true' : 'false';
+							} else if(typeof value === 'number' || value instanceof Number) {
+									return value;
+							} else if(value instanceof String) {
+									return '"'+value+'"';
+							} else if(value instanceof Array) {
+									return jsonToString(value, doNotQuoteKeys, indent+tab, tab, newLine);
+							} else if(value instanceof Object) {
+									return jsonToString(value, doNotQuoteKeys, indent+tab, tab, newLine);
+							} else {
+									return '"'+value+'"';
+							}
+					};
+					const newLineJsonValue = function(value) {
+							if(value === undefined || value === null) {
+									return false;
+							} else if(typeof value === 'boolean' || value instanceof Boolean) {
+									return false;
+							} else if(typeof value === 'number' || value instanceof Number) {
+									return false;
+							} else if(value instanceof String) {
+									return false;
+							} else if(value instanceof Array) {
+									return true;
+							} else if(value instanceof Object) {
+									return true;
+							} else {
+									return true;
+							}
+					};
+					if(json instanceof Array) {
+							jsonStr = '[';
+							const entries = json;
+							if(entries.length > 0) {
+									const newLineElems = newLineJsonValue(entries[0]);
+									jsonStr += newLineElems ? newLine : '';
+									for(let i = 0; i < entries.length; i++) {
+											const value = entries[i]; 
+											jsonStr += newLineElems ? indent+tab : '';
+											jsonStr += jsonToStringValue(value);
+											jsonStr += i < entries.length-1 ? ', ' : '';
+											jsonStr += newLineElems ? newLine : '';
+									}
+									jsonStr += newLineElems ? indent : '';
+							}
+							jsonStr += ']';
+					} else if(json instanceof Object) {
+							jsonStr = '{';
+							const entries = Object.entries(json);
+							if(entries.length > 0) {
+									jsonStr += newLine;
+									for(let i = 0; i < entries.length; i++) {
+											const entry = entries[i];
+											const key   = entry[0];
+											const value = entry[1];
+											jsonStr += indent+tab;
+											jsonStr += doNotQuoteKeys ? key : '"'+key+'"';
+											jsonStr += ': ';
+											jsonStr += jsonToStringValue(value);
+											jsonStr += i < entries.length-1 ? ', ' : '';
+											jsonStr += newLine;
+									}
+									jsonStr += indent;
+							}
+							jsonStr += '}';
+					} else {
+							jsonStr = jsonToStringValue(json);
+					}
+			}
+			return jsonStr;
+	};
 	this.rootElement = rootElement;
 	this.contextMap  = contextMap;
 	this.rootContext = rootContext;
-	this.update      = update;
-	this.updateRoot  = updateRoot;
-	this.getContext  = getContext;
 	Fin.Variable = Variable;
 	Fin.Context  = Context;
 };

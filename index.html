@@ -50,14 +50,12 @@
     <div>
       <Box component="Box" is="div"></Box>
       <FlexBox component="FlexBox" extends="Box"
-        $:gap
-        $:justify-content
-        $:align-items
-        $style="{
-          ($gap(this) && 'gap: '+$gap(this)+';')+
-          ($justify-content(this) && 'justify-content: '+$justify-content(this)+';')+
-          ($align-items(this) && 'align-items: '+$align-items(this)+';')
-        }"
+        $:gap  $:justify-content  $:align-items
+        $style="{{
+          gap: $gap(),
+          justifyContent: $justify-content(),
+          alignItems: $align-items()
+        }}"
       ></FlexBox>
       <RowFlexBox component="RowFlexBox" extends="FlexBox"></RowFlexBox>
       <ColFlexBox component="ColFlexBox" extends="FlexBox"></ColFlexBox>
@@ -150,6 +148,7 @@
           $title="{$label()}" 
           $value="{$value()}"
           $placeholder="{$placeholder()}"
+          $onInput="{$:value(this.output.value)}"
         />
       </LabeledInput>
     
@@ -158,24 +157,22 @@
         $let-password
         $onsubmit="{#
           event.preventDefault();
-          console.log({email: $email, password: $password});
+          console.log(jsonToString({email: $email.output.value, password: $password.output.value}));
         #}"
       >
         <LabeledInput 
+          $ref="{$:email = this}"
           name="loginEmail" 
           label="email" 
           type="email" 
           placeholder="user@example.com"
-          $onInput="{$:email=this.output.value}"
-          $value="{$email}"
         >
         </LabeledInput>
         <LabeledInput 
+          $ref="{$:password = this}"
           name="loginPassword" 
           label="pasword" 
           type="password" 
-          $onInput="{$:password=this.output.value}"
-          $value="{$password}"
         >
         </LabeledInput>
         <PrimaryButton type="submit">login</PrimaryButton>

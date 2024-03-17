@@ -391,22 +391,43 @@ const Fin = function(rootElement) {
 				const varName = attribute.value === '' 
 					? attributeName
 					: context.processText(attribute.value).trim();
-					context.setVar(varName, function(context_) { 
+					context.setVar(varName, function(attributeValue) { 
 						'use strict'
-						const ctx = context_ || context;
-						const attrib = ctx.output.attributes.getNamedItem(attributeName);
-						return attrib && attrib.value; 
+						const ctx = context;
+						if(!!attributeValue || attributeValue === '') {
+							ctx.output.setAttribute(attributeName, attributeValue);
+							ctx.output[attributeName] = attributeValue;
+						} else if(arguments.length >= 2 && !attributeValue) {
+							if(ctx.output.attributes.hasOwnProperty(attributeName)) 
+								ctx.output.attributes.removeNamedItem(attributeName);
+							if(ctx.output[attributeName] !== undefined)
+								delete ctx.output[attributeName];
+						} else {
+							const attrib = ctx.output.attributes.getNamedItem(attributeName);
+							return attrib && attrib.value; 
+						}
 					});
 				processed = true;
 			} else if(attribute.name.indexOf(Fin.ATTRIB_TOKEN) === 0) {
 				const attributeName  = attribute.name.substring(Fin.ATTRIB_TOKEN.length);
 				const attributeValue = context.processValue(attribute.value);
-				if(!!attributeValue || attributeValue==='') {
-					const outputAttribute = document.createAttribute(attributeName);
-					outputAttribute.value = attributeValue;
-					context.output.attributes.setNamedItem(outputAttribute);
-				} else if(context.output.attributes.hasOwnProperty(attributeName)) {
-					context.output.attributes.removeNamedItem(attributeName);
+				if(!!attributeValue || attributeValue === '') {
+					if(attributeName === 'style' &&
+						typeof attributeValue === 'object') {
+						for(let entry of Object.entries(attributeValue)) {
+							if(entry[1])
+								context.output.style[entry[0]] = entry[1];
+						}
+					} else {
+						const outputAttribute = document.createAttribute(attributeName);
+						outputAttribute.value = attributeValue;
+						context.output.attributes.setNamedItem(outputAttribute);
+					}
+				} else {
+					if(context.output.attributes.hasOwnProperty(attributeName))
+						context.output.attributes.removeNamedItem(attributeName);
+					if(context.output[attributeName] !== undefined)
+						delete context.output[attributeName];
 				}
 				processed = true;
 			}
